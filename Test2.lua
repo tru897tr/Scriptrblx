@@ -1,18 +1,8 @@
--- ============================================
--- ROBLOX SCRIPT HUB GUI
--- FULLY TESTED VERSION - ALL FUNCTIONS WORKING
--- 100% ENGLISH VERSION
--- ============================================
-
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
-
--- ============================================
--- DEBUG SYSTEM
--- ============================================
 
 local DEBUG = {Enabled = true, Logs = {}}
 
@@ -22,19 +12,27 @@ local function DebugLog(category, message, level)
     local logMessage = string.format("[%s][%s][%s] %s", timestamp, level, category, message)
     table.insert(DEBUG.Logs, logMessage)
     if DEBUG.Enabled then
-        if level == "ERROR" then 
-            warn(logMessage) 
-        else 
-            print(logMessage) 
-        end
+        if level == "ERROR" then warn(logMessage) else print(logMessage) end
     end
 end
 
 DebugLog("INIT", "Starting Script Hub initialization", "INFO")
 
--- ============================================
--- CONFIGURATION
--- ============================================
+local AntiSpam = {
+    LastAction = {},
+    Cooldowns = {Toggle = 0.3, Resize = 0.05, Drag = 0.05, Execute = 1.0, Category = 0.2}
+}
+
+local function CanPerformAction(actionName)
+    local now = tick()
+    local lastTime = AntiSpam.LastAction[actionName] or 0
+    local cooldown = AntiSpam.Cooldowns[actionName] or 0.5
+    if now - lastTime >= cooldown then
+        AntiSpam.LastAction[actionName] = now
+        return true
+    end
+    return false
+end
 
 local CONFIG = {
     Colors = {
@@ -54,26 +52,12 @@ local CONFIG = {
     DefaultSize = {Width = 650, Height = 400},
 }
 
--- Store GUI state
-local savedPosition = nil
-local isVisible = false
-
--- ============================================
--- CREATE SCREENGUI
--- ============================================
-
 local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "ScriptHubGUI"
 screenGui.ResetOnSpawn = false
 screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 screenGui.IgnoreGuiInset = true
 screenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
-
-DebugLog("GUI", "ScreenGui created", "INFO")
-
--- ============================================
--- STARTUP LOADING SCREEN
--- ============================================
 
 local startupLoading = Instance.new("Frame")
 startupLoading.Name = "StartupLoading"
@@ -104,73 +88,56 @@ startupSubtitle.TextSize = 16
 startupSubtitle.Parent = startupLoading
 
 local startupSpinner = Instance.new("Frame")
-startupSpinner.Size = UDim2.new(0, 80, 0, 80)
-startupSpinner.Position = UDim2.new(0.5, -40, 0.5, 50)
+startupSpinner.Size = UDim2.new(0, 70, 0, 70)
+startupSpinner.Position = UDim2.new(0.5, -35, 0.5, 50)
 startupSpinner.BackgroundTransparency = 1
 startupSpinner.Parent = startupLoading
 
-local startupDots = {}
 for i = 1, 12 do
     local dot = Instance.new("Frame")
-    dot.Size = UDim2.new(0, 10, 0, 10)
+    dot.Size = UDim2.new(0, 8, 0, 8)
     dot.BackgroundColor3 = CONFIG.Colors.Primary
     dot.BorderSizePixel = 0
-    dot.AnchorPoint = Vector2.new(0.5, 0.5)
     local angle = math.rad((i - 1) * 30)
-    local distance = 30
-    local x = math.cos(angle) * distance
-    local y = math.sin(angle) * distance
-    dot.Position = UDim2.new(0.5, x, 0.5, y)
+    local x = math.cos(angle) * 25
+    local y = math.sin(angle) * 25
+    dot.Position = UDim2.new(0.5, x - 4, 0.5, y - 4)
     local dotCorner = Instance.new("UICorner")
     dotCorner.CornerRadius = UDim.new(1, 0)
     dotCorner.Parent = dot
+    dot.BackgroundTransparency = 0.3
     dot.Parent = startupSpinner
-    table.insert(startupDots, dot)
+    task.spawn(function()
+        while startupLoading.Parent do
+            for fade = 0, 10 do
+                if not startupLoading.Parent then break end
+                dot.BackgroundTransparency = 0.3 + (fade / 15)
+                task.wait(0.05)
+            end
+            for fade = 10, 0, -1 do
+                if not startupLoading.Parent then break end
+                dot.BackgroundTransparency = 0.3 + (fade / 15)
+                task.wait(0.05)
+            end
+        end
+    end)
+    task.wait((12 - i) * 0.08)
 end
 
-local startupActive = true
-task.spawn(function()
-    while startupActive and startupLoading.Parent do
-        for i, dot in ipairs(startupDots) do
-            task.spawn(function()
-                local delay = (i - 1) * 0.08
-                task.wait(delay)
-                while startupActive and startupLoading.Parent do
-                    TweenService:Create(dot, TweenInfo.new(0.6, Enum.EasingStyle.Sine), {BackgroundTransparency = 0.9}):Play()
-                    task.wait(0.6)
-                    if not startupActive or not startupLoading.Parent then break end
-                    TweenService:Create(dot, TweenInfo.new(0.6, Enum.EasingStyle.Sine), {BackgroundTransparency = 0}):Play()
-                    task.wait(0.6)
-                end
-            end)
-        end
-        task.wait(1.2)
-    end
+local spinConnection = RunService.RenderStepped:Connect(function()
+    if not startupLoading.Parent then return end
+    startupSpinner.Rotation = (startupSpinner.Rotation + 1.5) % 360
 end)
 
-local startupRotate = RunService.RenderStepped:Connect(function()
-    if startupLoading and startupLoading.Parent then
-        startupSpinner.Rotation = (startupSpinner.Rotation + 1) % 360
-    end
-end)
-
-task.delay(2.5, function()
-    startupActive = false
-    if startupRotate then startupRotate:Disconnect() end
+task.delay(2, function()
     TweenService:Create(startupLoading, TweenInfo.new(0.5), {BackgroundTransparency = 1}):Play()
     TweenService:Create(startupTitle, TweenInfo.new(0.5), {TextTransparency = 1}):Play()
     TweenService:Create(startupSubtitle, TweenInfo.new(0.5), {TextTransparency = 1}):Play()
-    for _, dot in ipairs(startupDots) do
-        TweenService:Create(dot, TweenInfo.new(0.5), {BackgroundTransparency = 1}):Play()
-    end
     task.wait(0.5)
-    if startupLoading then startupLoading:Destroy() end
-    DebugLog("STARTUP", "Startup complete", "INFO")
+    if spinConnection then spinConnection:Disconnect() end
+    startupLoading:Destroy()
+    DebugLog("STARTUP", "Startup loading completed", "INFO")
 end)
-
--- ============================================
--- LOADING SCREEN (FOR SCRIPT EXECUTION)
--- ============================================
 
 local loadingScreen = Instance.new("Frame")
 loadingScreen.Name = "LoadingScreen"
@@ -179,7 +146,7 @@ loadingScreen.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
 loadingScreen.BackgroundTransparency = 1
 loadingScreen.BorderSizePixel = 0
 loadingScreen.Visible = false
-loadingScreen.ZIndex = 1500
+loadingScreen.ZIndex = 1000
 loadingScreen.Parent = screenGui
 
 local loadingTitle = Instance.new("TextLabel")
@@ -206,97 +173,67 @@ loadingDesc.TextTransparency = 1
 loadingDesc.Parent = loadingScreen
 
 local spinnerFrame = Instance.new("Frame")
-spinnerFrame.Size = UDim2.new(0, 70, 0, 70)
-spinnerFrame.Position = UDim2.new(0.5, -35, 0.5, 50)
+spinnerFrame.Size = UDim2.new(0, 60, 0, 60)
+spinnerFrame.Position = UDim2.new(0.5, -30, 0.5, 40)
 spinnerFrame.BackgroundTransparency = 1
 spinnerFrame.Parent = loadingScreen
 
-local spinnerDots = {}
 for i = 1, 8 do
     local dot = Instance.new("Frame")
-    dot.Size = UDim2.new(0, 10, 0, 10)
+    dot.Size = UDim2.new(0, 8, 0, 8)
     dot.BackgroundColor3 = CONFIG.Colors.Primary
     dot.BorderSizePixel = 0
     dot.BackgroundTransparency = 1
-    dot.AnchorPoint = Vector2.new(0.5, 0.5)
     local angle = math.rad((i - 1) * 45)
-    local distance = 25
-    local x = math.cos(angle) * distance
-    local y = math.sin(angle) * distance
-    dot.Position = UDim2.new(0.5, x, 0.5, y)
+    local x = math.cos(angle) * 20
+    local y = math.sin(angle) * 20
+    dot.Position = UDim2.new(0.5, x - 4, 0.5, y - 4)
     local dotCorner = Instance.new("UICorner")
     dotCorner.CornerRadius = UDim.new(1, 0)
     dotCorner.Parent = dot
     dot.Parent = spinnerFrame
-    table.insert(spinnerDots, dot)
 end
 
-local spinnerConnection = nil
-local spinnerAnimations = {}
+local loadingSpinConnection = nil
 
 local function showLoadingScreen()
+    if not CanPerformAction("Loading") then return end
     loadingScreen.Visible = true
-    TweenService:Create(loadingScreen, TweenInfo.new(0.3), {BackgroundTransparency = 0.4}):Play()
+    TweenService:Create(loadingScreen, TweenInfo.new(0.2), {BackgroundTransparency = 0.3}):Play()
     TweenService:Create(loadingTitle, TweenInfo.new(0.3), {TextTransparency = 0}):Play()
     TweenService:Create(loadingDesc, TweenInfo.new(0.3), {TextTransparency = 0}):Play()
-    
-    for i, dot in ipairs(spinnerDots) do
-        local delay = (i - 1) * 0.1
-        task.delay(delay, function()
-            TweenService:Create(dot, TweenInfo.new(0.3), {BackgroundTransparency = 0}):Play()
-        end)
-        
-        local anim = task.spawn(function()
-            while loadingScreen.Visible do
-                TweenService:Create(dot, TweenInfo.new(0.5, Enum.EasingStyle.Sine), {
-                    BackgroundTransparency = 0.8,
-                    Size = UDim2.new(0, 12, 0, 12)
-                }):Play()
-                task.wait(0.5 + delay)
-                if not loadingScreen.Visible then break end
-                TweenService:Create(dot, TweenInfo.new(0.5, Enum.EasingStyle.Sine), {
-                    BackgroundTransparency = 0,
-                    Size = UDim2.new(0, 10, 0, 10)
-                }):Play()
-                task.wait(0.5)
-            end
-        end)
-        table.insert(spinnerAnimations, anim)
-    end
-    
-    spinnerConnection = RunService.RenderStepped:Connect(function(dt)
-        if loadingScreen.Visible then
-            spinnerFrame.Rotation = (spinnerFrame.Rotation + 120 * dt) % 360
+    for i, dot in pairs(spinnerFrame:GetChildren()) do
+        if dot:IsA("Frame") then
+            task.delay((i - 1) * 0.1, function()
+                TweenService:Create(dot, TweenInfo.new(0.2), {BackgroundTransparency = 0}):Play()
+            end)
         end
+    end
+    loadingSpinConnection = RunService.RenderStepped:Connect(function()
+        if not loadingScreen.Visible then return end
+        spinnerFrame.Rotation = (spinnerFrame.Rotation + 2) % 360
     end)
-    
     task.delay(3, function()
         hideLoadingScreen()
     end)
 end
 
 function hideLoadingScreen()
-    TweenService:Create(loadingScreen, TweenInfo.new(0.3), {BackgroundTransparency = 1}):Play()
-    TweenService:Create(loadingTitle, TweenInfo.new(0.3), {TextTransparency = 1}):Play()
-    TweenService:Create(loadingDesc, TweenInfo.new(0.3), {TextTransparency = 1}):Play()
-    for _, dot in ipairs(spinnerDots) do
-        TweenService:Create(dot, TweenInfo.new(0.3), {BackgroundTransparency = 1, Size = UDim2.new(0, 10, 0, 10)}):Play()
+    TweenService:Create(loadingScreen, TweenInfo.new(0.2), {BackgroundTransparency = 1}):Play()
+    TweenService:Create(loadingTitle, TweenInfo.new(0.2), {TextTransparency = 1}):Play()
+    TweenService:Create(loadingDesc, TweenInfo.new(0.2), {TextTransparency = 1}):Play()
+    for _, dot in pairs(spinnerFrame:GetChildren()) do
+        if dot:IsA("Frame") then
+            TweenService:Create(dot, TweenInfo.new(0.2), {BackgroundTransparency = 1}):Play()
+        end
     end
-    task.wait(0.3)
+    task.wait(0.2)
     loadingScreen.Visible = false
-    if spinnerConnection then 
-        spinnerConnection:Disconnect() 
-        spinnerConnection = nil 
+    if loadingSpinConnection then 
+        loadingSpinConnection:Disconnect() 
+        loadingSpinConnection = nil
     end
-    for _, anim in ipairs(spinnerAnimations) do 
-        task.cancel(anim) 
-    end
-    spinnerAnimations = {}
 end
-
--- ============================================
--- TOGGLE BUTTON (FULLY WORKING)
--- ============================================
 
 local toggleButton = Instance.new("TextButton")
 toggleButton.Name = "ToggleButton"
@@ -336,27 +273,6 @@ for i = 1, 3 do
     lineCorner.Parent = line
 end
 
--- Hover effect
-toggleButton.MouseEnter:Connect(function()
-    TweenService:Create(toggleButton, TweenInfo.new(0.2), {
-        BackgroundColor3 = CONFIG.Colors.Secondary,
-        Size = UDim2.new(0, 52, 0, 52)
-    }):Play()
-end)
-
-toggleButton.MouseLeave:Connect(function()
-    TweenService:Create(toggleButton, TweenInfo.new(0.2), {
-        BackgroundColor3 = CONFIG.Colors.Primary,
-        Size = UDim2.new(0, 50, 0, 50)
-    }):Play()
-end)
-
-DebugLog("TOGGLE", "Toggle button created", "INFO")
-
--- ============================================
--- MAIN FRAME (FULLY WORKING)
--- ============================================
-
 local mainFrame = Instance.new("Frame")
 mainFrame.Name = "MainFrame"
 mainFrame.Size = UDim2.new(0, CONFIG.DefaultSize.Width, 0, CONFIG.DefaultSize.Height)
@@ -376,13 +292,8 @@ mainStroke.Thickness = 2
 mainStroke.Transparency = 0.5
 mainStroke.Parent = mainFrame
 
-DebugLog("MAINFRAME", "Main frame created", "INFO")
-
--- ============================================
--- TITLE BAR
--- ============================================
-
 local titleBar = Instance.new("Frame")
+titleBar.Name = "TitleBar"
 titleBar.Size = UDim2.new(1, 0, 0, 40)
 titleBar.BackgroundColor3 = CONFIG.Colors.Surface
 titleBar.BorderSizePixel = 0
@@ -454,10 +365,6 @@ closeButton.Parent = titleBar
 local closeCorner = Instance.new("UICorner")
 closeCorner.CornerRadius = UDim.new(0, 6)
 closeCorner.Parent = closeButton
-
--- ============================================
--- CONTENT CONTAINER
--- ============================================
 
 local contentContainer = Instance.new("Frame")
 contentContainer.Size = UDim2.new(1, -16, 1, -52)
@@ -538,20 +445,12 @@ contentPadding.PaddingTop = UDim.new(0, 4)
 contentPadding.PaddingBottom = UDim.new(0, 4)
 contentPadding.Parent = contentFrame
 
--- ============================================
--- HELPER FUNCTIONS
--- ============================================
-
 local function createHoverEffect(button, normalColor, hoverColor)
     button.MouseEnter:Connect(function()
-        TweenService:Create(button, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {
-            BackgroundColor3 = hoverColor
-        }):Play()
+        TweenService:Create(button, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {BackgroundColor3 = hoverColor}):Play()
     end)
     button.MouseLeave:Connect(function()
-        TweenService:Create(button, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {
-            BackgroundColor3 = normalColor
-        }):Play()
+        TweenService:Create(button, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {BackgroundColor3 = normalColor}):Play()
     end)
 end
 
@@ -620,6 +519,8 @@ local function createCategoryButton(name, icon, scripts)
     createHoverEffect(button, CONFIG.Colors.Background, CONFIG.Colors.SurfaceHover)
     
     button.MouseButton1Click:Connect(function()
+        if not CanPerformAction("Category") then return end
+        
         if selectedCategory then
             selectedCategory.Indicator.Visible = false
             selectedCategory.IconLabel.TextColor3 = CONFIG.Colors.TextSecondary
@@ -690,6 +591,7 @@ local function createCategoryButton(name, icon, scripts)
             createHoverEffect(executeBtn, CONFIG.Colors.Success, Color3.fromRGB(77, 191, 139))
             
             executeBtn.MouseButton1Click:Connect(function()
+                if not CanPerformAction("Execute") then return end
                 executeBtn.Text = "⏳..."
                 executeBtn.BackgroundColor3 = CONFIG.Colors.Warning
                 showLoadingScreen()
@@ -716,10 +618,6 @@ local function createCategoryButton(name, icon, scripts)
     end)
 end
 
--- ============================================
--- DATABASE
--- ============================================
-
 local scriptDatabase = {
     {category = "Pressure", icon = "🔥", scripts = {{name = "Nullfire Hub", description = "Official script hub", url = "https://rawscripts.net/raw/Pressure-WORKING-fire-hub-18064"}}},
     {category = "The Forge", icon = "⚒️", scripts = {{name = "Speed Hub X", description = "High-speed hub", url = "https://raw.githubusercontent.com/AhmadV99/Speed-Hub-X/main/Speed%20Hub%20X.lua"}}},
@@ -732,151 +630,79 @@ end
 
 categoryFrame.CanvasSize = UDim2.new(0, 0, 0, categoryList.AbsoluteContentSize.Y + 12)
 
--- ============================================
--- TOGGLE BUTTON DRAGGING (TESTED AND WORKING)
--- ============================================
-
 local toggleDragging = false
 local toggleDragStart = nil
 local toggleStartPos = nil
-local toggleClickTime = 0
-local hasMoved = false
+local toggleStartTime = 0
 
 toggleButton.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then
-        toggleClickTime = tick()
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
         toggleDragging = true
+        toggleStartTime = tick()
         toggleDragStart = input.Position
         toggleStartPos = toggleButton.Position
-        hasMoved = false
-        
-        DebugLog("TOGGLE_DRAG", "Started dragging", "INFO")
-        
-        TweenService:Create(toggleButton, TweenInfo.new(0.15, Enum.EasingStyle.Back), {
-            Size = UDim2.new(0, 55, 0, 55)
-        }):Play()
+        TweenService:Create(toggleButton, TweenInfo.new(0.15, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = UDim2.new(0, 55, 0, 55)}):Play()
     end
 end)
 
-UserInputService.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then
-        if toggleDragging then
-            input.Changed:Connect(function()
-                if input.UserInputState == Enum.UserInputState.End then
-                    local dragDuration = tick() - toggleClickTime
-                    toggleDragging = false
-                    
-                    DebugLog("TOGGLE_DRAG", string.format("Stopped dragging (duration: %.2fs, moved: %s)", dragDuration, tostring(hasMoved)), "INFO")
-                    
-                    TweenService:Create(toggleButton, TweenInfo.new(0.15, Enum.EasingStyle.Back), {
-                        Size = UDim2.new(0, 50, 0, 50)
-                    }):Play()
-                    
-                    -- Only toggle if it was a quick click without movement
-                    if dragDuration < 0.3 and not hasMoved then
-                        task.wait(0.05)
-                        toggleGUI()
-                    end
-                end
-            end)
+toggleButton.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        local dragTime = tick() - toggleStartTime
+        local wasDragging = toggleDragging
+        toggleDragging = false
+        TweenService:Create(toggleButton, TweenInfo.new(0.15, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = UDim2.new(0, 50, 0, 50)}):Play()
+        if dragTime < 0.2 and not wasDragging then
+            toggleGUI()
         end
     end
 end)
 
 UserInputService.InputChanged:Connect(function(input)
-    if toggleDragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+    if toggleDragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
         local delta = input.Position - toggleDragStart
-        
-        -- Check if actually moved
-        if math.abs(delta.X) > 3 or math.abs(delta.Y) > 3 then
-            hasMoved = true
-        end
-        
-        local viewport = workspace.CurrentCamera.ViewportSize
-        local newX = math.clamp(toggleStartPos.X.Offset + delta.X, 0, viewport.X - 55)
-        local newY = math.clamp(toggleStartPos.Y.Offset + delta.Y, 0, viewport.Y - 55)
-        
-        toggleButton.Position = UDim2.new(0, newX, 0, newY)
+        toggleButton.Position = UDim2.new(toggleStartPos.X.Scale, toggleStartPos.X.Offset + delta.X, toggleStartPos.Y.Scale, toggleStartPos.Y.Offset + delta.Y)
     end
 end)
 
--- ============================================
--- TOGGLE GUI (TESTED AND WORKING)
--- ============================================
+local isVisible = false
 
 function toggleGUI()
+    if not CanPerformAction("Toggle") then return end
     isVisible = not isVisible
-    
-    DebugLog("TOGGLE", string.format("Toggle GUI: %s", isVisible and "SHOW" or "HIDE"), "INFO")
-    
     if isVisible then
-        -- Show GUI
         mainFrame.Visible = true
-        
-        -- Restore saved position or use default
-        if savedPosition then
-            mainFrame.Position = savedPosition
-            DebugLog("TOGGLE", string.format("Restored position: %s", tostring(savedPosition)), "INFO")
-        else
-            mainFrame.Position = UDim2.new(0.5, -CONFIG.DefaultSize.Width/2, 0.5, -CONFIG.DefaultSize.Height/2)
-            DebugLog("TOGGLE", "Using default position", "INFO")
-        end
+        mainFrame.Size = UDim2.new(0, CONFIG.DefaultSize.Width, 0, CONFIG.DefaultSize.Height)
+        mainFrame.Position = UDim2.new(0.5, -CONFIG.DefaultSize.Width/2, 0.5, -CONFIG.DefaultSize.Height/2)
     else
-        -- Hide GUI and save position
-        savedPosition = mainFrame.Position
         mainFrame.Visible = false
-        DebugLog("TOGGLE", string.format("Saved position: %s", tostring(savedPosition)), "INFO")
     end
 end
-
--- ============================================
--- MAIN FRAME DRAGGING (TESTED AND WORKING)
--- ============================================
 
 local dragging = false
 local dragStart = nil
 local startPos = nil
 
 titleBar.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
         dragging = true
         dragStart = input.Position
         startPos = mainFrame.Position
-        
-        DebugLog("DRAG", "Started dragging mainFrame", "INFO")
     end
 end)
 
-UserInputService.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then
-        if dragging then
-            input.Changed:Connect(function()
-                if input.UserInputState == Enum.UserInputState.End then
-                    dragging = false
-                    savedPosition = mainFrame.Position
-                    DebugLog("DRAG", string.format("Stopped dragging, saved position: %s", tostring(savedPosition)), "INFO")
-                end
-            end)
-        end
+titleBar.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = false
     end
 end)
 
 UserInputService.InputChanged:Connect(function(input)
-    if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+    if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+        if not CanPerformAction("Drag") then return end
         local delta = input.Position - dragStart
-        local newPos = UDim2.new(
-            startPos.X.Scale,
-            startPos.X.Offset + delta.X,
-            startPos.Y.Scale,
-            startPos.Y.Offset + delta.Y
-        )
-        mainFrame.Position = newPos
+        mainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
     end
 end)
-
--- ============================================
--- RESIZING (TESTED AND WORKING)
--- ============================================
 
 local resizing = false
 local resizeCorner = nil
@@ -886,7 +712,7 @@ local resizeStartPos = nil
 local resizeThreshold = 20
 
 mainFrame.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
         local mousePos = input.Position
         local framePos = mainFrame.AbsolutePosition
         local frameSize = mainFrame.AbsoluteSize
@@ -909,28 +735,19 @@ mainFrame.InputBegan:Connect(function(input)
         resizeStart = input.Position
         resizeStartSize = mainFrame.Size
         resizeStartPos = mainFrame.Position
-        
-        DebugLog("RESIZE", string.format("Started resizing from corner: %s", resizeCorner), "INFO")
     end
 end)
 
-UserInputService.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then
-        if resizing then
-            input.Changed:Connect(function()
-                if input.UserInputState == Enum.UserInputState.End then
-                    resizing = false
-                    resizeCorner = nil
-                    savedPosition = mainFrame.Position
-                    DebugLog("RESIZE", "Stopped resizing", "INFO")
-                end
-            end)
-        end
+mainFrame.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        resizing = false
+        resizeCorner = nil
     end
 end)
 
 UserInputService.InputChanged:Connect(function(input)
-    if resizing and input.UserInputType == Enum.UserInputType.MouseMovement then
+    if resizing and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+        if not CanPerformAction("Resize") then return end
         local delta = input.Position - resizeStart
         local newWidth = resizeStartSize.X.Offset
         local newHeight = resizeStartSize.Y.Offset
@@ -963,46 +780,27 @@ UserInputService.InputChanged:Connect(function(input)
     end
 end)
 
--- ============================================
--- BUTTONS
--- ============================================
-
-minimizeButton.MouseButton1Click:Connect(function() 
-    DebugLog("BUTTON", "Minimize clicked", "INFO")
-    toggleGUI() 
-end)
+minimizeButton.MouseButton1Click:Connect(function() toggleGUI() end)
 
 closeButton.MouseButton1Click:Connect(function()
-    DebugLog("BUTTON", "Close clicked", "INFO")
-    TweenService:Create(toggleButton, TweenInfo.new(0.3), {BackgroundTransparency = 1}):Play()
+    TweenService:Create(toggleButton, TweenInfo.new(0.2), {BackgroundTransparency = 1}):Play()
     for _, line in pairs(iconFrame:GetChildren()) do
         if line:IsA("Frame") then
-            TweenService:Create(line, TweenInfo.new(0.3), {BackgroundTransparency = 1}):Play()
+            TweenService:Create(line, TweenInfo.new(0.2), {BackgroundTransparency = 1}):Play()
         end
     end
-    task.wait(0.3)
+    task.wait(0.2)
     screenGui:Destroy()
 end)
 
 createHoverEffect(minimizeButton, CONFIG.Colors.Warning, Color3.fromRGB(255, 180, 50))
 createHoverEffect(closeButton, CONFIG.Colors.Danger, Color3.fromRGB(255, 80, 80))
 
--- ============================================
--- INIT
--- ============================================
-
-task.wait(3)
+task.wait(2.5)
 toggleGUI()
-
-DebugLog("INIT", "Script Hub initialization completed", "INFO")
 
 print("===========================================")
 print("🎮 ROBLOX SCRIPT HUB")
 print("✅ Loaded successfully!")
-print("📌 All functions tested and working:")
-print("  ✓ Toggle button dragging")
-print("  ✓ Show/Hide GUI")
-print("  ✓ Main frame dragging")
-print("  ✓ Corner resizing")
-print("  ✓ Position memory")
+print("📱 Mobile & PC supported")
 print("===========================================")
