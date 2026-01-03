@@ -88,53 +88,46 @@ startupSubtitle.TextSize = 16
 startupSubtitle.Parent = startupLoading
 
 local startupSpinner = Instance.new("Frame")
-startupSpinner.Size = UDim2.new(0, 70, 0, 70)
-startupSpinner.Position = UDim2.new(0.5, -35, 0.5, 50)
+startupSpinner.Size = UDim2.new(0, 80, 0, 80)
+startupSpinner.Position = UDim2.new(0.5, -40, 0.5, 50)
 startupSpinner.BackgroundTransparency = 1
 startupSpinner.Parent = startupLoading
 
-for i = 1, 12 do
+for i = 1, 8 do
     local dot = Instance.new("Frame")
-    dot.Size = UDim2.new(0, 8, 0, 8)
+    dot.Size = UDim2.new(0, 12, 0, 12)
     dot.BackgroundColor3 = CONFIG.Colors.Primary
     dot.BorderSizePixel = 0
-    local angle = math.rad((i - 1) * 30)
-    local x = math.cos(angle) * 25
-    local y = math.sin(angle) * 25
-    dot.Position = UDim2.new(0.5, x - 4, 0.5, y - 4)
+    local angle = math.rad((i - 1) * 45)
+    local radius = 28
+    local x = math.cos(angle) * radius
+    local y = math.sin(angle) * radius
+    dot.Position = UDim2.new(0.5, x - 6, 0.5, y - 6)
+    dot.BackgroundTransparency = 0.2 + (i - 1) * 0.1
     local dotCorner = Instance.new("UICorner")
     dotCorner.CornerRadius = UDim.new(1, 0)
     dotCorner.Parent = dot
-    dot.BackgroundTransparency = 0.3
     dot.Parent = startupSpinner
-    task.spawn(function()
-        while startupLoading.Parent do
-            for fade = 0, 10 do
-                if not startupLoading.Parent then break end
-                dot.BackgroundTransparency = 0.3 + (fade / 15)
-                task.wait(0.05)
-            end
-            for fade = 10, 0, -1 do
-                if not startupLoading.Parent then break end
-                dot.BackgroundTransparency = 0.3 + (fade / 15)
-                task.wait(0.05)
-            end
-        end
-    end)
-    task.wait((12 - i) * 0.08)
 end
 
-local spinConnection = RunService.RenderStepped:Connect(function()
-    if not startupLoading.Parent then return end
-    startupSpinner.Rotation = (startupSpinner.Rotation + 1.5) % 360
+local startupSpinConnection = RunService.RenderStepped:Connect(function()
+    if not startupLoading.Parent then 
+        return 
+    end
+    startupSpinner.Rotation = (startupSpinner.Rotation + 3) % 360
 end)
 
 task.delay(2, function()
     TweenService:Create(startupLoading, TweenInfo.new(0.5), {BackgroundTransparency = 1}):Play()
     TweenService:Create(startupTitle, TweenInfo.new(0.5), {TextTransparency = 1}):Play()
     TweenService:Create(startupSubtitle, TweenInfo.new(0.5), {TextTransparency = 1}):Play()
+    for _, dot in pairs(startupSpinner:GetChildren()) do
+        if dot:IsA("Frame") then
+            TweenService:Create(dot, TweenInfo.new(0.5), {BackgroundTransparency = 1}):Play()
+        end
+    end
     task.wait(0.5)
-    if spinConnection then spinConnection:Disconnect() end
+    if startupSpinConnection then startupSpinConnection:Disconnect() end
     startupLoading:Destroy()
     DebugLog("STARTUP", "Startup loading completed", "INFO")
 end)
@@ -173,21 +166,22 @@ loadingDesc.TextTransparency = 1
 loadingDesc.Parent = loadingScreen
 
 local spinnerFrame = Instance.new("Frame")
-spinnerFrame.Size = UDim2.new(0, 60, 0, 60)
-spinnerFrame.Position = UDim2.new(0.5, -30, 0.5, 40)
+spinnerFrame.Size = UDim2.new(0, 80, 0, 80)
+spinnerFrame.Position = UDim2.new(0.5, -40, 0.5, 40)
 spinnerFrame.BackgroundTransparency = 1
 spinnerFrame.Parent = loadingScreen
 
 for i = 1, 8 do
     local dot = Instance.new("Frame")
-    dot.Size = UDim2.new(0, 8, 0, 8)
+    dot.Size = UDim2.new(0, 12, 0, 12)
     dot.BackgroundColor3 = CONFIG.Colors.Primary
     dot.BorderSizePixel = 0
     dot.BackgroundTransparency = 1
     local angle = math.rad((i - 1) * 45)
-    local x = math.cos(angle) * 20
-    local y = math.sin(angle) * 20
-    dot.Position = UDim2.new(0.5, x - 4, 0.5, y - 4)
+    local radius = 28
+    local x = math.cos(angle) * radius
+    local y = math.sin(angle) * radius
+    dot.Position = UDim2.new(0.5, x - 6, 0.5, y - 6)
     local dotCorner = Instance.new("UICorner")
     dotCorner.CornerRadius = UDim.new(1, 0)
     dotCorner.Parent = dot
@@ -202,17 +196,24 @@ local function showLoadingScreen()
     TweenService:Create(loadingScreen, TweenInfo.new(0.2), {BackgroundTransparency = 0.3}):Play()
     TweenService:Create(loadingTitle, TweenInfo.new(0.3), {TextTransparency = 0}):Play()
     TweenService:Create(loadingDesc, TweenInfo.new(0.3), {TextTransparency = 0}):Play()
+    
     for i, dot in pairs(spinnerFrame:GetChildren()) do
         if dot:IsA("Frame") then
-            task.delay((i - 1) * 0.1, function()
-                TweenService:Create(dot, TweenInfo.new(0.2), {BackgroundTransparency = 0}):Play()
-            end)
+            dot.BackgroundTransparency = 0.2 + (i - 1) * 0.1
         end
     end
+    
     loadingSpinConnection = RunService.RenderStepped:Connect(function()
-        if not loadingScreen.Visible then return end
-        spinnerFrame.Rotation = (spinnerFrame.Rotation + 2) % 360
+        if not loadingScreen.Visible then 
+            if loadingSpinConnection then 
+                loadingSpinConnection:Disconnect()
+                loadingSpinConnection = nil
+            end
+            return 
+        end
+        spinnerFrame.Rotation = (spinnerFrame.Rotation + 3) % 360
     end)
+    
     task.delay(3, function()
         hideLoadingScreen()
     end)
@@ -280,6 +281,7 @@ mainFrame.Position = UDim2.new(0.5, -CONFIG.DefaultSize.Width/2, 0.5, -CONFIG.De
 mainFrame.BackgroundColor3 = CONFIG.Colors.Background
 mainFrame.BorderSizePixel = 0
 mainFrame.Visible = false
+mainFrame.BackgroundTransparency = 1
 mainFrame.Parent = screenGui
 
 local mainCorner = Instance.new("UICorner")
@@ -289,7 +291,7 @@ mainCorner.Parent = mainFrame
 local mainStroke = Instance.new("UIStroke")
 mainStroke.Color = CONFIG.Colors.Primary
 mainStroke.Thickness = 2
-mainStroke.Transparency = 0.5
+mainStroke.Transparency = 1
 mainStroke.Parent = mainFrame
 
 local titleBar = Instance.new("Frame")
@@ -355,10 +357,10 @@ local closeButton = Instance.new("TextButton")
 closeButton.Size = UDim2.new(0, 28, 0, 28)
 closeButton.Position = UDim2.new(1, -32, 0.5, -14)
 closeButton.BackgroundColor3 = CONFIG.Colors.Danger
-closeButton.Text = "✕"
+closeButton.Text = "X"
 closeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 closeButton.Font = Enum.Font.GothamBold
-closeButton.TextSize = 14
+closeButton.TextSize = 16
 closeButton.AutoButtonColor = false
 closeButton.Parent = titleBar
 
@@ -633,13 +635,20 @@ categoryFrame.CanvasSize = UDim2.new(0, 0, 0, categoryList.AbsoluteContentSize.Y
 local toggleDragging = false
 local toggleDragStart = nil
 local toggleStartPos = nil
-local toggleStartTime = 0
+local toggleMoveThreshold = 10
+
+local function getInputPosition(input)
+    if input.UserInputType == Enum.UserInputType.Touch then
+        return input.Position
+    else
+        return UserInputService:GetMouseLocation()
+    end
+end
 
 toggleButton.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-        toggleDragging = true
-        toggleStartTime = tick()
-        toggleDragStart = input.Position
+        toggleDragging = false
+        toggleDragStart = getInputPosition(input)
         toggleStartPos = toggleButton.Position
         TweenService:Create(toggleButton, TweenInfo.new(0.15, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = UDim2.new(0, 55, 0, 55)}):Play()
     end
@@ -647,20 +656,24 @@ end)
 
 toggleButton.InputEnded:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-        local dragTime = tick() - toggleStartTime
-        local wasDragging = toggleDragging
-        toggleDragging = false
         TweenService:Create(toggleButton, TweenInfo.new(0.15, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = UDim2.new(0, 50, 0, 50)}):Play()
-        if dragTime < 0.2 and not wasDragging then
+        if not toggleDragging then
             toggleGUI()
         end
+        toggleDragging = false
     end
 end)
 
 UserInputService.InputChanged:Connect(function(input)
-    if toggleDragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
-        local delta = input.Position - toggleDragStart
-        toggleButton.Position = UDim2.new(toggleStartPos.X.Scale, toggleStartPos.X.Offset + delta.X, toggleStartPos.Y.Scale, toggleStartPos.Y.Offset + delta.Y)
+    if (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) and toggleDragStart then
+        local currentPos = getInputPosition(input)
+        local delta = currentPos - toggleDragStart
+        local distance = math.sqrt(delta.X * delta.X + delta.Y * delta.Y)
+        
+        if distance > toggleMoveThreshold then
+            toggleDragging = true
+            toggleButton.Position = UDim2.new(toggleStartPos.X.Scale, toggleStartPos.X.Offset + delta.X, toggleStartPos.Y.Scale, toggleStartPos.Y.Offset + delta.Y)
+        end
     end
 end)
 
@@ -669,38 +682,71 @@ local isVisible = false
 function toggleGUI()
     if not CanPerformAction("Toggle") then return end
     isVisible = not isVisible
+    
     if isVisible then
         mainFrame.Visible = true
-        mainFrame.Size = UDim2.new(0, CONFIG.DefaultSize.Width, 0, CONFIG.DefaultSize.Height)
-        mainFrame.Position = UDim2.new(0.5, -CONFIG.DefaultSize.Width/2, 0.5, -CONFIG.DefaultSize.Height/2)
+        mainFrame.BackgroundTransparency = 1
+        mainStroke.Transparency = 1
+        mainFrame.Size = UDim2.new(0, CONFIG.DefaultSize.Width * 0.8, 0, CONFIG.DefaultSize.Height * 0.8)
+        mainFrame.Position = UDim2.new(0.5, -CONFIG.DefaultSize.Width * 0.4, 0.5, -CONFIG.DefaultSize.Height * 0.4)
+        
+        TweenService:Create(mainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+            Size = UDim2.new(0, CONFIG.DefaultSize.Width, 0, CONFIG.DefaultSize.Height),
+            Position = UDim2.new(0.5, -CONFIG.DefaultSize.Width/2, 0.5, -CONFIG.DefaultSize.Height/2),
+            BackgroundTransparency = 0
+        }):Play()
+        
+        TweenService:Create(mainStroke, TweenInfo.new(0.3), {Transparency = 0.5}):Play()
     else
+        TweenService:Create(mainFrame, TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.In), {
+            Size = UDim2.new(0, CONFIG.DefaultSize.Width * 0.8, 0, CONFIG.DefaultSize.Height * 0.8),
+            BackgroundTransparency = 1
+        }):Play()
+        
+        TweenService:Create(mainStroke, TweenInfo.new(0.2), {Transparency = 1}):Play()
+        
+        task.wait(0.2)
         mainFrame.Visible = false
     end
 end
 
 local dragging = false
+local dragInput = nil
 local dragStart = nil
 local startPos = nil
+local dragThreshold = 10
+local hasMoved = false
 
 titleBar.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-        dragging = true
-        dragStart = input.Position
+        dragInput = input
+        dragStart = getInputPosition(input)
         startPos = mainFrame.Position
+        dragging = false
+        hasMoved = false
     end
 end)
 
 titleBar.InputEnded:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
         dragging = false
+        dragInput = nil
     end
 end)
 
 UserInputService.InputChanged:Connect(function(input)
-    if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
-        if not CanPerformAction("Drag") then return end
-        local delta = input.Position - dragStart
-        mainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+    if dragInput and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+        local currentPos = getInputPosition(input)
+        local delta = currentPos - dragStart
+        local distance = math.sqrt(delta.X * delta.X + delta.Y * delta.Y)
+        
+        if distance > dragThreshold or hasMoved then
+            dragging = true
+            hasMoved = true
+            if CanPerformAction("Drag") then
+                mainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+            end
+        end
     end
 end)
 
@@ -709,11 +755,11 @@ local resizeCorner = nil
 local resizeStart = nil
 local resizeStartSize = nil
 local resizeStartPos = nil
-local resizeThreshold = 20
+local resizeThreshold = 25
 
 mainFrame.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-        local mousePos = input.Position
+        local mousePos = getInputPosition(input)
         local framePos = mainFrame.AbsolutePosition
         local frameSize = mainFrame.AbsoluteSize
         local relX = mousePos.X - framePos.X
@@ -732,7 +778,7 @@ mainFrame.InputBegan:Connect(function(input)
         end
         
         resizing = true
-        resizeStart = input.Position
+        resizeStart = mousePos
         resizeStartSize = mainFrame.Size
         resizeStartPos = mainFrame.Position
     end
@@ -748,7 +794,8 @@ end)
 UserInputService.InputChanged:Connect(function(input)
     if resizing and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
         if not CanPerformAction("Resize") then return end
-        local delta = input.Position - resizeStart
+        local currentPos = getInputPosition(input)
+        local delta = currentPos - resizeStart
         local newWidth = resizeStartSize.X.Offset
         local newHeight = resizeStartSize.Y.Offset
         local newPosX = resizeStartPos.X.Offset
@@ -783,6 +830,10 @@ end)
 minimizeButton.MouseButton1Click:Connect(function() toggleGUI() end)
 
 closeButton.MouseButton1Click:Connect(function()
+    TweenService:Create(mainFrame, TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.In), {
+        Size = UDim2.new(0, 0, 0, 0),
+        BackgroundTransparency = 1
+    }):Play()
     TweenService:Create(toggleButton, TweenInfo.new(0.2), {BackgroundTransparency = 1}):Play()
     for _, line in pairs(iconFrame:GetChildren()) do
         if line:IsA("Frame") then
