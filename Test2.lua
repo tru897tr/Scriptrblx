@@ -636,6 +636,7 @@ local toggleDragging = false
 local toggleDragStart = nil
 local toggleStartPos = nil
 local toggleMoveThreshold = 10
+local isTogglePressed = false
 
 local function getInputPosition(input)
     if input.UserInputType == Enum.UserInputType.Touch then
@@ -647,6 +648,7 @@ end
 
 toggleButton.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        isTogglePressed = true
         toggleDragging = false
         toggleDragStart = getInputPosition(input)
         toggleStartPos = toggleButton.Position
@@ -661,11 +663,13 @@ toggleButton.InputEnded:Connect(function(input)
             toggleGUI()
         end
         toggleDragging = false
+        isTogglePressed = false
+        toggleDragStart = nil
     end
 end)
 
 UserInputService.InputChanged:Connect(function(input)
-    if (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) and toggleDragStart then
+    if isTogglePressed and toggleDragStart and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
         local currentPos = getInputPosition(input)
         local delta = currentPos - toggleDragStart
         local distance = math.sqrt(delta.X * delta.X + delta.Y * delta.Y)
