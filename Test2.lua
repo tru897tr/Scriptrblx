@@ -535,6 +535,17 @@ local function createCategoryButton(name, icon, scripts)
         textLabel.TextColor3 = CONFIG.Colors.Text
         
         for _, child in pairs(contentFrame:GetChildren()) do
+            if child:IsA("Frame") then 
+                TweenService:Create(child, TweenInfo.new(0.15), {
+                    Size = UDim2.new(1, 0, 0, 0),
+                    BackgroundTransparency = 1
+                }):Play()
+            end
+        end
+        
+        task.wait(0.15)
+        
+        for _, child in pairs(contentFrame:GetChildren()) do
             if child:IsA("Frame") then child:Destroy() end
         end
         
@@ -543,9 +554,10 @@ local function createCategoryButton(name, icon, scripts)
         
         for i, scriptData in ipairs(scripts) do
             local scriptCard = Instance.new("Frame")
-            scriptCard.Size = UDim2.new(1, 0, 0, 65)
+            scriptCard.Size = UDim2.new(1, 0, 0, 0)
             scriptCard.BackgroundColor3 = CONFIG.Colors.Background
             scriptCard.BorderSizePixel = 0
+            scriptCard.BackgroundTransparency = 1
             scriptCard.Parent = contentFrame
             
             local cardCorner = Instance.new("UICorner")
@@ -561,6 +573,7 @@ local function createCategoryButton(name, icon, scripts)
             scriptName.Font = Enum.Font.GothamBold
             scriptName.TextSize = 12
             scriptName.TextXAlignment = Enum.TextXAlignment.Left
+            scriptName.TextTransparency = 1
             scriptName.Parent = scriptCard
             
             local scriptDesc = Instance.new("TextLabel")
@@ -573,6 +586,7 @@ local function createCategoryButton(name, icon, scripts)
             scriptDesc.TextSize = 10
             scriptDesc.TextXAlignment = Enum.TextXAlignment.Left
             scriptDesc.TextWrapped = true
+            scriptDesc.TextTransparency = 1
             scriptDesc.Parent = scriptCard
             
             local executeBtn = Instance.new("TextButton")
@@ -584,6 +598,8 @@ local function createCategoryButton(name, icon, scripts)
             executeBtn.Font = Enum.Font.GothamBold
             executeBtn.TextSize = 10
             executeBtn.AutoButtonColor = false
+            executeBtn.BackgroundTransparency = 1
+            executeBtn.TextTransparency = 1
             executeBtn.Parent = scriptCard
             
             local execCorner = Instance.new("UICorner")
@@ -591,6 +607,20 @@ local function createCategoryButton(name, icon, scripts)
             execCorner.Parent = executeBtn
             
             createHoverEffect(executeBtn, CONFIG.Colors.Success, Color3.fromRGB(77, 191, 139))
+            
+            task.delay(i * 0.05, function()
+                TweenService:Create(scriptCard, TweenInfo.new(0.25, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+                    Size = UDim2.new(1, 0, 0, 65),
+                    BackgroundTransparency = 0
+                }):Play()
+                
+                TweenService:Create(scriptName, TweenInfo.new(0.2), {TextTransparency = 0}):Play()
+                TweenService:Create(scriptDesc, TweenInfo.new(0.2), {TextTransparency = 0}):Play()
+                TweenService:Create(executeBtn, TweenInfo.new(0.2), {
+                    BackgroundTransparency = 0,
+                    TextTransparency = 0
+                }):Play()
+            end)
             
             executeBtn.MouseButton1Click:Connect(function()
                 if not CanPerformAction("Execute") then return end
@@ -652,13 +682,11 @@ toggleButton.InputBegan:Connect(function(input)
         toggleDragging = false
         toggleDragStart = getInputPosition(input)
         toggleStartPos = toggleButton.Position
-        TweenService:Create(toggleButton, TweenInfo.new(0.15, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = UDim2.new(0, 55, 0, 55)}):Play()
     end
 end)
 
 toggleButton.InputEnded:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-        TweenService:Create(toggleButton, TweenInfo.new(0.15, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = UDim2.new(0, 50, 0, 50)}):Play()
         if not toggleDragging then
             toggleGUI()
         end
@@ -682,6 +710,8 @@ UserInputService.InputChanged:Connect(function(input)
 end)
 
 local isVisible = false
+local savedSize = nil
+local savedPosition = nil
 
 function toggleGUI()
     if not CanPerformAction("Toggle") then return end
@@ -689,21 +719,29 @@ function toggleGUI()
     
     if isVisible then
         mainFrame.Visible = true
+        
+        if not savedSize or not savedPosition then
+            savedSize = UDim2.new(0, CONFIG.DefaultSize.Width, 0, CONFIG.DefaultSize.Height)
+            savedPosition = UDim2.new(0.5, -CONFIG.DefaultSize.Width/2, 0.5, -CONFIG.DefaultSize.Height/2)
+        end
+        
         mainFrame.BackgroundTransparency = 1
         mainStroke.Transparency = 1
-        mainFrame.Size = UDim2.new(0, CONFIG.DefaultSize.Width * 0.8, 0, CONFIG.DefaultSize.Height * 0.8)
-        mainFrame.Position = UDim2.new(0.5, -CONFIG.DefaultSize.Width * 0.4, 0.5, -CONFIG.DefaultSize.Height * 0.4)
+        mainFrame.Size = UDim2.new(0, savedSize.X.Offset * 0.8, 0, savedSize.Y.Offset * 0.8)
+        mainFrame.Position = savedPosition
         
         TweenService:Create(mainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
-            Size = UDim2.new(0, CONFIG.DefaultSize.Width, 0, CONFIG.DefaultSize.Height),
-            Position = UDim2.new(0.5, -CONFIG.DefaultSize.Width/2, 0.5, -CONFIG.DefaultSize.Height/2),
+            Size = savedSize,
             BackgroundTransparency = 0
         }):Play()
         
         TweenService:Create(mainStroke, TweenInfo.new(0.3), {Transparency = 0.5}):Play()
     else
+        savedSize = mainFrame.Size
+        savedPosition = mainFrame.Position
+        
         TweenService:Create(mainFrame, TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.In), {
-            Size = UDim2.new(0, CONFIG.DefaultSize.Width * 0.8, 0, CONFIG.DefaultSize.Height * 0.8),
+            Size = UDim2.new(0, savedSize.X.Offset * 0.8, 0, savedSize.Y.Offset * 0.8),
             BackgroundTransparency = 1
         }):Play()
         
@@ -747,9 +785,7 @@ UserInputService.InputChanged:Connect(function(input)
         if distance > dragThreshold or hasMoved then
             dragging = true
             hasMoved = true
-            if CanPerformAction("Drag") then
-                mainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
-            end
+            mainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
         end
     end
 end)
@@ -797,7 +833,6 @@ end)
 
 UserInputService.InputChanged:Connect(function(input)
     if resizing and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
-        if not CanPerformAction("Resize") then return end
         local currentPos = getInputPosition(input)
         local delta = currentPos - resizeStart
         local newWidth = resizeStartSize.X.Offset
