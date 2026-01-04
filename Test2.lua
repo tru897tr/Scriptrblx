@@ -447,6 +447,115 @@ contentPadding.PaddingTop = UDim.new(0, 4)
 contentPadding.PaddingBottom = UDim.new(0, 4)
 contentPadding.Parent = contentFrame
 
+local confirmationPopup = Instance.new("Frame")
+confirmationPopup.Name = "ConfirmationPopup"
+confirmationPopup.Size = UDim2.new(1, 0, 1, 0)
+confirmationPopup.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+confirmationPopup.BackgroundTransparency = 1
+confirmationPopup.BorderSizePixel = 0
+confirmationPopup.Visible = false
+confirmationPopup.ZIndex = 1500
+confirmationPopup.Parent = screenGui
+
+local popupBox = Instance.new("Frame")
+popupBox.Size = UDim2.new(0, 400, 0, 200)
+popupBox.Position = UDim2.new(0.5, -200, 0.5, -100)
+popupBox.BackgroundColor3 = CONFIG.Colors.Surface
+popupBox.BorderSizePixel = 0
+popupBox.Parent = confirmationPopup
+
+local popupCorner = Instance.new("UICorner")
+popupCorner.CornerRadius = UDim.new(0, 12)
+popupCorner.Parent = popupBox
+
+local popupStroke = Instance.new("UIStroke")
+popupStroke.Color = CONFIG.Colors.Primary
+popupStroke.Thickness = 2
+popupStroke.Transparency = 0.5
+popupStroke.Parent = popupBox
+
+local popupTitle = Instance.new("TextLabel")
+popupTitle.Size = UDim2.new(1, -40, 0, 40)
+popupTitle.Position = UDim2.new(0, 20, 0, 20)
+popupTitle.BackgroundTransparency = 1
+popupTitle.Text = "Close Script Hub"
+popupTitle.TextColor3 = CONFIG.Colors.Text
+popupTitle.Font = Enum.Font.GothamBold
+popupTitle.TextSize = 18
+popupTitle.TextXAlignment = Enum.TextXAlignment.Left
+popupTitle.Parent = popupBox
+
+local popupMessage = Instance.new("TextLabel")
+popupMessage.Size = UDim2.new(1, -40, 0, 60)
+popupMessage.Position = UDim2.new(0, 20, 0, 70)
+popupMessage.BackgroundTransparency = 1
+popupMessage.Text = "Are you sure you want to close this script?\nAll running scripts will be terminated."
+popupMessage.TextColor3 = CONFIG.Colors.TextSecondary
+popupMessage.Font = Enum.Font.Gotham
+popupMessage.TextSize = 14
+popupMessage.TextWrapped = true
+popupMessage.TextXAlignment = Enum.TextXAlignment.Left
+popupMessage.TextYAlignment = Enum.TextYAlignment.Top
+popupMessage.Parent = popupBox
+
+local popupButtonContainer = Instance.new("Frame")
+popupButtonContainer.Size = UDim2.new(1, -40, 0, 40)
+popupButtonContainer.Position = UDim2.new(0, 20, 1, -60)
+popupButtonContainer.BackgroundTransparency = 1
+popupButtonContainer.Parent = popupBox
+
+local popupNoButton = Instance.new("TextButton")
+popupNoButton.Size = UDim2.new(0.48, 0, 1, 0)
+popupNoButton.Position = UDim2.new(0, 0, 0, 0)
+popupNoButton.BackgroundColor3 = CONFIG.Colors.TextSecondary
+popupNoButton.Text = "No"
+popupNoButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+popupNoButton.Font = Enum.Font.GothamBold
+popupNoButton.TextSize = 14
+popupNoButton.AutoButtonColor = false
+popupNoButton.Parent = popupButtonContainer
+
+local noCorner = Instance.new("UICorner")
+noCorner.CornerRadius = UDim.new(0, 8)
+noCorner.Parent = popupNoButton
+
+local popupYesButton = Instance.new("TextButton")
+popupYesButton.Size = UDim2.new(0.48, 0, 1, 0)
+popupYesButton.Position = UDim2.new(0.52, 0, 0, 0)
+popupYesButton.BackgroundColor3 = CONFIG.Colors.Danger
+popupYesButton.Text = "Yes, Close"
+popupYesButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+popupYesButton.Font = Enum.Font.GothamBold
+popupYesButton.TextSize = 14
+popupYesButton.AutoButtonColor = false
+popupYesButton.Parent = popupButtonContainer
+
+local yesCorner = Instance.new("UICorner")
+yesCorner.CornerRadius = UDim.new(0, 8)
+yesCorner.Parent = popupYesButton
+
+local function showConfirmPopup()
+    confirmationPopup.Visible = true
+    confirmationPopup.BackgroundTransparency = 1
+    popupBox.Size = UDim2.new(0, 320, 0, 160)
+    popupBox.Position = UDim2.new(0.5, -160, 0.5, -80)
+    
+    TweenService:Create(confirmationPopup, TweenInfo.new(0.2), {BackgroundTransparency = 0.5}):Play()
+    TweenService:Create(popupBox, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+        Size = UDim2.new(0, 400, 0, 200),
+        Position = UDim2.new(0.5, -200, 0.5, -100)
+    }):Play()
+end
+
+local function hideConfirmPopup()
+    TweenService:Create(confirmationPopup, TweenInfo.new(0.2), {BackgroundTransparency = 1}):Play()
+    TweenService:Create(popupBox, TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.In), {
+        Size = UDim2.new(0, 320, 0, 160)
+    }):Play()
+    task.wait(0.2)
+    confirmationPopup.Visible = false
+end
+
 local function createHoverEffect(button, normalColor, hoverColor)
     button.MouseEnter:Connect(function()
         TweenService:Create(button, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {BackgroundColor3 = hoverColor}):Play()
@@ -483,24 +592,14 @@ local function createCategoryButton(name, icon, scripts)
     indCorner.CornerRadius = UDim.new(1, 0)
     indCorner.Parent = indicator
     
-    local iconLabel = Instance.new("TextLabel")
-    iconLabel.Size = UDim2.new(0, 26, 0, 26)
-    iconLabel.Position = UDim2.new(0, 8, 0.5, -13)
-    iconLabel.BackgroundTransparency = 1
-    iconLabel.Text = icon
-    iconLabel.TextSize = 16
-    iconLabel.Font = Enum.Font.GothamBold
-    iconLabel.TextColor3 = CONFIG.Colors.TextSecondary
-    iconLabel.Parent = button
-    
     local textLabel = Instance.new("TextLabel")
-    textLabel.Size = UDim2.new(1, -65, 1, 0)
-    textLabel.Position = UDim2.new(0, 38, 0, 0)
+    textLabel.Size = UDim2.new(1, -35, 1, 0)
+    textLabel.Position = UDim2.new(0, 10, 0, 0)
     textLabel.BackgroundTransparency = 1
     textLabel.Text = name
     textLabel.TextColor3 = CONFIG.Colors.TextSecondary
     textLabel.Font = Enum.Font.GothamSemibold
-    textLabel.TextSize = 12
+    textLabel.TextSize = 13
     textLabel.TextXAlignment = Enum.TextXAlignment.Left
     textLabel.Parent = button
     
@@ -525,13 +624,11 @@ local function createCategoryButton(name, icon, scripts)
         
         if selectedCategory then
             selectedCategory.Indicator.Visible = false
-            selectedCategory.IconLabel.TextColor3 = CONFIG.Colors.TextSecondary
             selectedCategory.TextLabel.TextColor3 = CONFIG.Colors.TextSecondary
         end
         
-        selectedCategory = {Indicator = indicator, IconLabel = iconLabel, TextLabel = textLabel}
+        selectedCategory = {Indicator = indicator, TextLabel = textLabel}
         indicator.Visible = true
-        iconLabel.TextColor3 = CONFIG.Colors.Primary
         textLabel.TextColor3 = CONFIG.Colors.Text
         
         for _, child in pairs(contentFrame:GetChildren()) do
@@ -565,57 +662,44 @@ local function createCategoryButton(name, icon, scripts)
             cardCorner.Parent = scriptCard
             
             local scriptName = Instance.new("TextLabel")
-            scriptName.Size = UDim2.new(1, -100, 0, 20)
-            scriptName.Position = UDim2.new(0, 10, 0, 8)
+            scriptName.Size = UDim2.new(1, -100, 1, 0)
+            scriptName.Position = UDim2.new(0, 10, 0, 0)
             scriptName.BackgroundTransparency = 1
             scriptName.Text = scriptData.name
             scriptName.TextColor3 = CONFIG.Colors.Text
             scriptName.Font = Enum.Font.GothamBold
-            scriptName.TextSize = 12
+            scriptName.TextSize = 13
             scriptName.TextXAlignment = Enum.TextXAlignment.Left
+            scriptName.TextYAlignment = Enum.TextYAlignment.Center
             scriptName.TextTransparency = 1
             scriptName.Parent = scriptCard
             
-            local scriptDesc = Instance.new("TextLabel")
-            scriptDesc.Size = UDim2.new(1, -100, 0, 30)
-            scriptDesc.Position = UDim2.new(0, 10, 0, 28)
-            scriptDesc.BackgroundTransparency = 1
-            scriptDesc.Text = scriptData.description or "Click to run script"
-            scriptDesc.TextColor3 = CONFIG.Colors.TextSecondary
-            scriptDesc.Font = Enum.Font.Gotham
-            scriptDesc.TextSize = 10
-            scriptDesc.TextXAlignment = Enum.TextXAlignment.Left
-            scriptDesc.TextWrapped = true
-            scriptDesc.TextTransparency = 1
-            scriptDesc.Parent = scriptCard
-            
             local executeBtn = Instance.new("TextButton")
-            executeBtn.Size = UDim2.new(0, 85, 0, 28)
-            executeBtn.Position = UDim2.new(1, -90, 0.5, -14)
+            executeBtn.Size = UDim2.new(0, 85, 0, 32)
+            executeBtn.Position = UDim2.new(1, -90, 0.5, -16)
             executeBtn.BackgroundColor3 = CONFIG.Colors.Success
             executeBtn.Text = "▶ RUN"
             executeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
             executeBtn.Font = Enum.Font.GothamBold
-            executeBtn.TextSize = 10
+            executeBtn.TextSize = 11
             executeBtn.AutoButtonColor = false
             executeBtn.BackgroundTransparency = 1
             executeBtn.TextTransparency = 1
             executeBtn.Parent = scriptCard
             
             local execCorner = Instance.new("UICorner")
-            execCorner.CornerRadius = UDim.new(0, 5)
+            execCorner.CornerRadius = UDim.new(0, 6)
             execCorner.Parent = executeBtn
             
             createHoverEffect(executeBtn, CONFIG.Colors.Success, Color3.fromRGB(77, 191, 139))
             
             task.delay(i * 0.05, function()
                 TweenService:Create(scriptCard, TweenInfo.new(0.25, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
-                    Size = UDim2.new(1, 0, 0, 65),
+                    Size = UDim2.new(1, 0, 0, 45),
                     BackgroundTransparency = 0
                 }):Play()
                 
                 TweenService:Create(scriptName, TweenInfo.new(0.2), {TextTransparency = 0}):Play()
-                TweenService:Create(scriptDesc, TweenInfo.new(0.2), {TextTransparency = 0}):Play()
                 TweenService:Create(executeBtn, TweenInfo.new(0.2), {
                     BackgroundTransparency = 0,
                     TextTransparency = 0
@@ -651,9 +735,16 @@ local function createCategoryButton(name, icon, scripts)
 end
 
 local scriptDatabase = {
-    {category = "Pressure", icon = "🔥", scripts = {{name = "Nullfire Hub", description = "Official script hub", url = "https://rawscripts.net/raw/Pressure-WORKING-fire-hub-18064"}}},
-    {category = "The Forge", icon = "⚒️", scripts = {{name = "Speed Hub X", description = "High-speed hub", url = "https://raw.githubusercontent.com/AhmadV99/Speed-Hub-X/main/Speed%20Hub%20X.lua"}}},
-    {category = "Grow A Garden", icon = "🌱", scripts = {{name = "Speed Hub X", description = "High-speed hub", url = "https://raw.githubusercontent.com/AhmadV99/Speed-Hub-X/main/Speed%20Hub%20X.lua"}}}
+    {category = "Pressure", icon = "🔥", scripts = {{name = "Nullfire Hub", url = "https://rawscripts.net/raw/Pressure-WORKING-fire-hub-18064"}}},
+    {category = "The Forge", icon = "⚒️", scripts = {
+        {name = "Speed Hub X", url = "https://raw.githubusercontent.com/AhmadV99/Speed-Hub-X/main/Speed%20Hub%20X.lua"},
+        {name = "Forgex", url = "https://raw.githubusercontent.com/AnonymoDGH/scripts/refs/heads/main/forgex.lua"},
+        {name = "Chiyo", url = "https://raw.githubusercontent.com/kaisenlmao/loader/refs/heads/main/chiyo.lua"},
+        {name = "Haze", url = "https://haze.wtf/api/script"}
+    }},
+    {category = "Grow A Garden", icon = "🌱", scripts = {{name = "Speed Hub X", url = "https://raw.githubusercontent.com/AhmadV99/Speed-Hub-X/main/Speed%20Hub%20X.lua"}}},
+    {category = "Blox Fruit", icon = "🍇", scripts = {{name = "HoHo Hub", url = "https://raw.githubusercontent.com/acsu123/HOHO_H/main/Loading_UI"}}},
+    {category = "Refinery Cave 2", icon = "⛏️", scripts = {{name = "Refinery Cave 2", url = "https://raw.githubusercontent.com/Lucas559-noob/Roblox-Scripts/refs/heads/main/RC2"}}}
 }
 
 for _, data in ipairs(scriptDatabase) do
@@ -869,6 +960,16 @@ end)
 minimizeButton.MouseButton1Click:Connect(function() toggleGUI() end)
 
 closeButton.MouseButton1Click:Connect(function()
+    showConfirmPopup()
+end)
+
+popupNoButton.MouseButton1Click:Connect(function()
+    hideConfirmPopup()
+end)
+
+popupYesButton.MouseButton1Click:Connect(function()
+    hideConfirmPopup()
+    task.wait(0.2)
     TweenService:Create(mainFrame, TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.In), {
         Size = UDim2.new(0, 0, 0, 0),
         BackgroundTransparency = 1
@@ -885,6 +986,8 @@ end)
 
 createHoverEffect(minimizeButton, CONFIG.Colors.Warning, Color3.fromRGB(255, 180, 50))
 createHoverEffect(closeButton, CONFIG.Colors.Danger, Color3.fromRGB(255, 80, 80))
+createHoverEffect(popupNoButton, CONFIG.Colors.TextSecondary, Color3.fromRGB(165, 167, 170))
+createHoverEffect(popupYesButton, CONFIG.Colors.Danger, Color3.fromRGB(255, 80, 80))
 
 task.wait(2.5)
 toggleGUI()
