@@ -1,26 +1,321 @@
+--[[
+    ROBLOX SCRIPT HUB V2.0
+    Features:
+    - HWID Tracking via Discord Webhook
+    - Multi-language Support (EN, VI, RU, FR, ES)
+    - Theme System (Light, Dark, Blue, Green, Yellow)
+    - Advanced Search with Highlighting
+    - Settings Panel
+    - Data Persistence
+    - Improved Resize System
+]]
+
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
 local Players = game:GetService("Players")
+local HttpService = game:GetService("HttpService")
 local LocalPlayer = Players.LocalPlayer
 
-local DEBUG = {Enabled = true, Logs = {}}
+-- ==================== CONFIGURATION ====================
+local CONFIG = {
+    WebhookURL = "https://discord.com/api/webhooks/1404784419545546813/EWBH0qWyoRrZPUiQj3q8sagsrx7SKEF2PhXIyk9miFQ_bsD6Nh0AlcumRfnrTPcWsRxr",
+    DataFolder = "ScriptHub",
+    SettingsFile = "settings.json",
+    MinSize = {Width = 450, Height = 250},
+    MaxSize = {Width = 1000, Height = 700},
+    DefaultSize = {Width = 650, Height = 400},
+    ResizeHitbox = 35, -- Increased from 25
+}
 
-local function DebugLog(category, message, level)
-    level = level or "INFO"
-    local timestamp = os.date("%H:%M:%S")
-    local logMessage = string.format("[%s][%s][%s] %s", timestamp, level, category, message)
-    table.insert(DEBUG.Logs, logMessage)
-    if DEBUG.Enabled then
-        if level == "ERROR" then warn(logMessage) else print(logMessage) end
-    end
+-- ==================== THEME SYSTEM ====================
+local THEMES = {
+    Dark = {
+        Primary = Color3.fromRGB(88, 101, 242),
+        Secondary = Color3.fromRGB(114, 137, 218),
+        Background = Color3.fromRGB(32, 34, 37),
+        Surface = Color3.fromRGB(47, 49, 54),
+        SurfaceHover = Color3.fromRGB(54, 57, 63),
+        Text = Color3.fromRGB(255, 255, 255),
+        TextSecondary = Color3.fromRGB(185, 187, 190),
+        Success = Color3.fromRGB(67, 181, 129),
+        Danger = Color3.fromRGB(237, 66, 69),
+        Warning = Color3.fromRGB(250, 166, 26),
+        Highlight = Color3.fromRGB(255, 215, 0),
+    },
+    Light = {
+        Primary = Color3.fromRGB(79, 91, 213),
+        Secondary = Color3.fromRGB(99, 125, 199),
+        Background = Color3.fromRGB(255, 255, 255),
+        Surface = Color3.fromRGB(245, 245, 247),
+        SurfaceHover = Color3.fromRGB(235, 235, 240),
+        Text = Color3.fromRGB(30, 30, 30),
+        TextSecondary = Color3.fromRGB(100, 100, 100),
+        Success = Color3.fromRGB(52, 168, 83),
+        Danger = Color3.fromRGB(234, 67, 53),
+        Warning = Color3.fromRGB(251, 188, 5),
+        Highlight = Color3.fromRGB(255, 193, 7),
+    },
+    Blue = {
+        Primary = Color3.fromRGB(25, 118, 210),
+        Secondary = Color3.fromRGB(66, 165, 245),
+        Background = Color3.fromRGB(13, 27, 42),
+        Surface = Color3.fromRGB(21, 47, 72),
+        SurfaceHover = Color3.fromRGB(30, 60, 90),
+        Text = Color3.fromRGB(255, 255, 255),
+        TextSecondary = Color3.fromRGB(176, 190, 197),
+        Success = Color3.fromRGB(38, 166, 154),
+        Danger = Color3.fromRGB(239, 83, 80),
+        Warning = Color3.fromRGB(255, 167, 38),
+        Highlight = Color3.fromRGB(100, 181, 246),
+    },
+    Green = {
+        Primary = Color3.fromRGB(46, 125, 50),
+        Secondary = Color3.fromRGB(76, 175, 80),
+        Background = Color3.fromRGB(27, 40, 28),
+        Surface = Color3.fromRGB(40, 56, 42),
+        SurfaceHover = Color3.fromRGB(50, 70, 52),
+        Text = Color3.fromRGB(255, 255, 255),
+        TextSecondary = Color3.fromRGB(200, 230, 201),
+        Success = Color3.fromRGB(102, 187, 106),
+        Danger = Color3.fromRGB(229, 115, 115),
+        Warning = Color3.fromRGB(255, 213, 79),
+        Highlight = Color3.fromRGB(129, 199, 132),
+    },
+    Yellow = {
+        Primary = Color3.fromRGB(245, 127, 23),
+        Secondary = Color3.fromRGB(255, 160, 0),
+        Background = Color3.fromRGB(40, 35, 25),
+        Surface = Color3.fromRGB(55, 48, 35),
+        SurfaceHover = Color3.fromRGB(70, 60, 45),
+        Text = Color3.fromRGB(255, 255, 255),
+        TextSecondary = Color3.fromRGB(255, 224, 178),
+        Success = Color3.fromRGB(129, 199, 132),
+        Danger = Color3.fromRGB(239, 83, 80),
+        Warning = Color3.fromRGB(255, 193, 7),
+        Highlight = Color3.fromRGB(255, 235, 59),
+    }
+}
+
+-- ==================== LANGUAGE SYSTEM ====================
+local LANGUAGES = {
+    EN = {
+        title = "ROBLOX SCRIPT HUB",
+        loading = "Loading, please wait...",
+        loadingTitle = "LOADING",
+        loadingDesc = "Please wait while we are loading this program",
+        selectCategory = "Select a category to view scripts",
+        closeTitle = "Close Script Hub",
+        closeMessage = "Are you sure you want to close this script?\nAll running scripts will be terminated.",
+        yes = "Yes, Close",
+        no = "No",
+        run = "RUN",
+        ok = "OK",
+        error = "ERROR",
+        settings = "Settings",
+        theme = "Theme",
+        language = "Language",
+        search = "Search...",
+        searchBtn = "Search",
+        noResults = "No results found",
+        searching = "Searching...",
+        categories = "Categories",
+        scripts = "Scripts",
+    },
+    VI = {
+        title = "TRUNG TÂM SCRIPT ROBLOX",
+        loading = "Đang tải, vui lòng đợi...",
+        loadingTitle = "ĐANG TẢI",
+        loadingDesc = "Vui lòng đợi trong khi chúng tôi đang tải chương trình",
+        selectCategory = "Chọn danh mục để xem script",
+        closeTitle = "Đóng Script Hub",
+        closeMessage = "Bạn có chắc muốn đóng script này không?\nTất cả script đang chạy sẽ bị dừng.",
+        yes = "Có, Đóng",
+        no = "Không",
+        run = "CHẠY",
+        ok = "XONG",
+        error = "LỖI",
+        settings = "Cài Đặt",
+        theme = "Chủ Đề",
+        language = "Ngôn Ngữ",
+        search = "Tìm kiếm...",
+        searchBtn = "Tìm",
+        noResults = "Không tìm thấy kết quả",
+        searching = "Đang tìm...",
+        categories = "Danh Mục",
+        scripts = "Scripts",
+    },
+    RU = {
+        title = "ЦЕНТР СКРИПТОВ ROBLOX",
+        loading = "Загрузка, пожалуйста подождите...",
+        loadingTitle = "ЗАГРУЗКА",
+        loadingDesc = "Пожалуйста, подождите, пока мы загружаем программу",
+        selectCategory = "Выберите категорию для просмотра скриптов",
+        closeTitle = "Закрыть Script Hub",
+        closeMessage = "Вы уверены, что хотите закрыть этот скрипт?\nВсе запущенные скрипты будут остановлены.",
+        yes = "Да, Закрыть",
+        no = "Нет",
+        run = "ЗАПУСК",
+        ok = "ОК",
+        error = "ОШИБКА",
+        settings = "Настройки",
+        theme = "Тема",
+        language = "Язык",
+        search = "Поиск...",
+        searchBtn = "Найти",
+        noResults = "Результаты не найдены",
+        searching = "Поиск...",
+        categories = "Категории",
+        scripts = "Скрипты",
+    },
+    FR = {
+        title = "CENTRE DE SCRIPTS ROBLOX",
+        loading = "Chargement, veuillez patienter...",
+        loadingTitle = "CHARGEMENT",
+        loadingDesc = "Veuillez patienter pendant que nous chargeons le programme",
+        selectCategory = "Sélectionnez une catégorie pour voir les scripts",
+        closeTitle = "Fermer Script Hub",
+        closeMessage = "Êtes-vous sûr de vouloir fermer ce script?\nTous les scripts en cours seront arrêtés.",
+        yes = "Oui, Fermer",
+        no = "Non",
+        run = "LANCER",
+        ok = "OK",
+        error = "ERREUR",
+        settings = "Paramètres",
+        theme = "Thème",
+        language = "Langue",
+        search = "Rechercher...",
+        searchBtn = "Chercher",
+        noResults = "Aucun résultat trouvé",
+        searching = "Recherche...",
+        categories = "Catégories",
+        scripts = "Scripts",
+    },
+    ES = {
+        title = "CENTRO DE SCRIPTS ROBLOX",
+        loading = "Cargando, por favor espere...",
+        loadingTitle = "CARGANDO",
+        loadingDesc = "Por favor espere mientras cargamos el programa",
+        selectCategory = "Seleccione una categoría para ver scripts",
+        closeTitle = "Cerrar Script Hub",
+        closeMessage = "¿Está seguro de que desea cerrar este script?\nTodos los scripts en ejecución se detendrán.",
+        yes = "Sí, Cerrar",
+        no = "No",
+        run = "EJECUTAR",
+        ok = "OK",
+        error = "ERROR",
+        settings = "Configuración",
+        theme = "Tema",
+        language = "Idioma",
+        search = "Buscar...",
+        searchBtn = "Buscar",
+        noResults = "No se encontraron resultados",
+        searching = "Buscando...",
+        categories = "Categorías",
+        scripts = "Scripts",
+    }
+}
+
+-- ==================== GLOBAL STATE ====================
+local CurrentTheme = "Dark"
+local CurrentLanguage = "EN"
+local UserSettings = {
+    theme = "Dark",
+    language = "EN"
+}
+
+-- ==================== UTILITY FUNCTIONS ====================
+local function GetHWID()
+    local hwid = game:GetService("RbxAnalyticsService"):GetClientId()
+    return hwid
 end
 
-DebugLog("INIT", "Starting Script Hub initialization", "INFO")
+local function SendWebhook(hwid)
+    local data = {
+        embeds = {{
+            title = "🔐 New Script Hub User",
+            description = "A user has loaded the Script Hub",
+            color = 5814783,
+            fields = {
+                {name = "👤 Username", value = LocalPlayer.Name, inline = true},
+                {name = "🆔 UserID", value = tostring(LocalPlayer.UserId), inline = true},
+                {name = "🔑 HWID", value = hwid, inline = false},
+                {name = "🎮 Game", value = game:GetService("MarketplaceService"):GetProductInfo(game.PlaceId).Name, inline = false},
+                {name = "⏰ Timestamp", value = os.date("%Y-%m-%d %H:%M:%S"), inline = false}
+            },
+            footer = {text = "Script Hub Logger"}
+        }}
+    }
+    
+    pcall(function()
+        syn.request({
+            Url = CONFIG.WebhookURL,
+            Method = "POST",
+            Headers = {["Content-Type"] = "application/json"},
+            Body = HttpService:JSONEncode(data)
+        })
+    end)
+end
 
+local function SaveSettings()
+    if not isfolder(CONFIG.DataFolder) then
+        makefolder(CONFIG.DataFolder)
+    end
+    
+    local filepath = CONFIG.DataFolder .. "/" .. CONFIG.SettingsFile
+    local data = HttpService:JSONEncode(UserSettings)
+    writefile(filepath, data)
+end
+
+local function LoadSettings()
+    if not isfolder(CONFIG.DataFolder) then
+        makefolder(CONFIG.DataFolder)
+    end
+    
+    local filepath = CONFIG.DataFolder .. "/" .. CONFIG.SettingsFile
+    
+    if isfile(filepath) then
+        local success, data = pcall(function()
+            return HttpService:JSONDecode(readfile(filepath))
+        end)
+        
+        if success and data then
+            UserSettings = data
+            CurrentTheme = UserSettings.theme or "Dark"
+            CurrentLanguage = UserSettings.language or "EN"
+            return true
+        end
+    end
+    
+    SaveSettings()
+    return false
+end
+
+local function GetTheme()
+    return THEMES[CurrentTheme]
+end
+
+local function GetLang()
+    return LANGUAGES[CurrentLanguage]
+end
+
+local function HighlightText(text, searchQuery)
+    if searchQuery == "" then return text end
+    
+    local lowerText = string.lower(text)
+    local lowerQuery = string.lower(searchQuery)
+    local startPos, endPos = string.find(lowerText, lowerQuery, 1, true)
+    
+    if startPos then
+        return text
+    end
+    return text
+end
+
+-- ==================== ANTI-SPAM SYSTEM ====================
 local AntiSpam = {
     LastAction = {},
-    Cooldowns = {Toggle = 0.3, Resize = 0.05, Drag = 0.05, Execute = 1.0, Category = 0.2}
+    Cooldowns = {Toggle = 0.3, Resize = 0.05, Drag = 0.05, Execute = 1.0, Category = 0.2, Search = 0.3}
 }
 
 local function CanPerformAction(actionName)
@@ -34,23 +329,10 @@ local function CanPerformAction(actionName)
     return false
 end
 
-local CONFIG = {
-    Colors = {
-        Primary = Color3.fromRGB(88, 101, 242),
-        Secondary = Color3.fromRGB(114, 137, 218),
-        Background = Color3.fromRGB(32, 34, 37),
-        Surface = Color3.fromRGB(47, 49, 54),
-        SurfaceHover = Color3.fromRGB(54, 57, 63),
-        Text = Color3.fromRGB(255, 255, 255),
-        TextSecondary = Color3.fromRGB(185, 187, 190),
-        Success = Color3.fromRGB(67, 181, 129),
-        Danger = Color3.fromRGB(237, 66, 69),
-        Warning = Color3.fromRGB(250, 166, 26),
-    },
-    MinSize = {Width = 450, Height = 250},
-    MaxSize = {Width = 1000, Height = 700},
-    DefaultSize = {Width = 650, Height = 400},
-}
+-- ==================== GUI CREATION ====================
+LoadSettings()
+local hwid = GetHWID()
+SendWebhook(hwid)
 
 local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "ScriptHubGUI"
@@ -59,6 +341,7 @@ screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 screenGui.IgnoreGuiInset = true
 screenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 
+-- Startup Loading Screen
 local startupLoading = Instance.new("Frame")
 startupLoading.Name = "StartupLoading"
 startupLoading.Size = UDim2.new(1, 0, 1, 0)
@@ -72,7 +355,7 @@ startupTitle.Size = UDim2.new(0, 500, 0, 70)
 startupTitle.Position = UDim2.new(0.5, -250, 0.5, -100)
 startupTitle.BackgroundTransparency = 1
 startupTitle.Text = "SCRIPT HUB"
-startupTitle.TextColor3 = CONFIG.Colors.Primary
+startupTitle.TextColor3 = GetTheme().Primary
 startupTitle.Font = Enum.Font.GothamBold
 startupTitle.TextSize = 48
 startupTitle.Parent = startupLoading
@@ -81,8 +364,8 @@ local startupSubtitle = Instance.new("TextLabel")
 startupSubtitle.Size = UDim2.new(0, 400, 0, 30)
 startupSubtitle.Position = UDim2.new(0.5, -200, 0.5, -20)
 startupSubtitle.BackgroundTransparency = 1
-startupSubtitle.Text = "Loading, please wait..."
-startupSubtitle.TextColor3 = CONFIG.Colors.TextSecondary
+startupSubtitle.Text = GetLang().loading
+startupSubtitle.TextColor3 = GetTheme().TextSecondary
 startupSubtitle.Font = Enum.Font.Gotham
 startupSubtitle.TextSize = 16
 startupSubtitle.Parent = startupLoading
@@ -96,7 +379,7 @@ startupSpinner.Parent = startupLoading
 for i = 1, 8 do
     local dot = Instance.new("Frame")
     dot.Size = UDim2.new(0, 12, 0, 12)
-    dot.BackgroundColor3 = CONFIG.Colors.Primary
+    dot.BackgroundColor3 = GetTheme().Primary
     dot.BorderSizePixel = 0
     local angle = math.rad((i - 1) * 45)
     local radius = 28
@@ -111,9 +394,7 @@ for i = 1, 8 do
 end
 
 local startupSpinConnection = RunService.RenderStepped:Connect(function()
-    if not startupLoading.Parent then 
-        return 
-    end
+    if not startupLoading.Parent then return end
     startupSpinner.Rotation = (startupSpinner.Rotation + 3) % 360
 end)
 
@@ -129,118 +410,14 @@ task.delay(2, function()
     task.wait(0.5)
     if startupSpinConnection then startupSpinConnection:Disconnect() end
     startupLoading:Destroy()
-    DebugLog("STARTUP", "Startup loading completed", "INFO")
 end)
 
-local loadingScreen = Instance.new("Frame")
-loadingScreen.Name = "LoadingScreen"
-loadingScreen.Size = UDim2.new(1, 0, 1, 0)
-loadingScreen.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-loadingScreen.BackgroundTransparency = 1
-loadingScreen.BorderSizePixel = 0
-loadingScreen.Visible = false
-loadingScreen.ZIndex = 1000
-loadingScreen.Parent = screenGui
-
-local loadingTitle = Instance.new("TextLabel")
-loadingTitle.Size = UDim2.new(0, 400, 0, 60)
-loadingTitle.Position = UDim2.new(0.5, -200, 0.5, -80)
-loadingTitle.BackgroundTransparency = 1
-loadingTitle.Text = "LOADING"
-loadingTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
-loadingTitle.Font = Enum.Font.GothamBold
-loadingTitle.TextSize = 32
-loadingTitle.TextTransparency = 1
-loadingTitle.Parent = loadingScreen
-
-local loadingDesc = Instance.new("TextLabel")
-loadingDesc.Size = UDim2.new(0, 500, 0, 40)
-loadingDesc.Position = UDim2.new(0.5, -250, 0.5, -10)
-loadingDesc.BackgroundTransparency = 1
-loadingDesc.Text = "Please wait while we are loading this program"
-loadingDesc.TextColor3 = CONFIG.Colors.TextSecondary
-loadingDesc.Font = Enum.Font.Gotham
-loadingDesc.TextSize = 14
-loadingDesc.TextWrapped = true
-loadingDesc.TextTransparency = 1
-loadingDesc.Parent = loadingScreen
-
-local spinnerFrame = Instance.new("Frame")
-spinnerFrame.Size = UDim2.new(0, 80, 0, 80)
-spinnerFrame.Position = UDim2.new(0.5, -40, 0.5, 40)
-spinnerFrame.BackgroundTransparency = 1
-spinnerFrame.Parent = loadingScreen
-
-for i = 1, 8 do
-    local dot = Instance.new("Frame")
-    dot.Size = UDim2.new(0, 12, 0, 12)
-    dot.BackgroundColor3 = CONFIG.Colors.Primary
-    dot.BorderSizePixel = 0
-    dot.BackgroundTransparency = 1
-    local angle = math.rad((i - 1) * 45)
-    local radius = 28
-    local x = math.cos(angle) * radius
-    local y = math.sin(angle) * radius
-    dot.Position = UDim2.new(0.5, x - 6, 0.5, y - 6)
-    local dotCorner = Instance.new("UICorner")
-    dotCorner.CornerRadius = UDim.new(1, 0)
-    dotCorner.Parent = dot
-    dot.Parent = spinnerFrame
-end
-
-local loadingSpinConnection = nil
-
-local function showLoadingScreen()
-    if not CanPerformAction("Loading") then return end
-    loadingScreen.Visible = true
-    TweenService:Create(loadingScreen, TweenInfo.new(0.2), {BackgroundTransparency = 0.3}):Play()
-    TweenService:Create(loadingTitle, TweenInfo.new(0.3), {TextTransparency = 0}):Play()
-    TweenService:Create(loadingDesc, TweenInfo.new(0.3), {TextTransparency = 0}):Play()
-    
-    for i, dot in pairs(spinnerFrame:GetChildren()) do
-        if dot:IsA("Frame") then
-            dot.BackgroundTransparency = 0.2 + (i - 1) * 0.1
-        end
-    end
-    
-    loadingSpinConnection = RunService.RenderStepped:Connect(function()
-        if not loadingScreen.Visible then 
-            if loadingSpinConnection then 
-                loadingSpinConnection:Disconnect()
-                loadingSpinConnection = nil
-            end
-            return 
-        end
-        spinnerFrame.Rotation = (spinnerFrame.Rotation + 3) % 360
-    end)
-    
-    task.delay(3, function()
-        hideLoadingScreen()
-    end)
-end
-
-function hideLoadingScreen()
-    TweenService:Create(loadingScreen, TweenInfo.new(0.2), {BackgroundTransparency = 1}):Play()
-    TweenService:Create(loadingTitle, TweenInfo.new(0.2), {TextTransparency = 1}):Play()
-    TweenService:Create(loadingDesc, TweenInfo.new(0.2), {TextTransparency = 1}):Play()
-    for _, dot in pairs(spinnerFrame:GetChildren()) do
-        if dot:IsA("Frame") then
-            TweenService:Create(dot, TweenInfo.new(0.2), {BackgroundTransparency = 1}):Play()
-        end
-    end
-    task.wait(0.2)
-    loadingScreen.Visible = false
-    if loadingSpinConnection then 
-        loadingSpinConnection:Disconnect() 
-        loadingSpinConnection = nil
-    end
-end
-
+-- Toggle Button
 local toggleButton = Instance.new("TextButton")
 toggleButton.Name = "ToggleButton"
 toggleButton.Size = UDim2.new(0, 50, 0, 50)
 toggleButton.Position = UDim2.new(0, 15, 0.5, -25)
-toggleButton.BackgroundColor3 = CONFIG.Colors.Primary
+toggleButton.BackgroundColor3 = GetTheme().Primary
 toggleButton.BorderSizePixel = 0
 toggleButton.Text = ""
 toggleButton.AutoButtonColor = false
@@ -274,11 +451,12 @@ for i = 1, 3 do
     lineCorner.Parent = line
 end
 
+-- Main Frame
 local mainFrame = Instance.new("Frame")
 mainFrame.Name = "MainFrame"
 mainFrame.Size = UDim2.new(0, CONFIG.DefaultSize.Width, 0, CONFIG.DefaultSize.Height)
 mainFrame.Position = UDim2.new(0.5, -CONFIG.DefaultSize.Width/2, 0.5, -CONFIG.DefaultSize.Height/2)
-mainFrame.BackgroundColor3 = CONFIG.Colors.Background
+mainFrame.BackgroundColor3 = GetTheme().Background
 mainFrame.BorderSizePixel = 0
 mainFrame.Visible = false
 mainFrame.BackgroundTransparency = 1
@@ -289,15 +467,16 @@ mainCorner.CornerRadius = UDim.new(0, 12)
 mainCorner.Parent = mainFrame
 
 local mainStroke = Instance.new("UIStroke")
-mainStroke.Color = CONFIG.Colors.Primary
+mainStroke.Color = GetTheme().Primary
 mainStroke.Thickness = 2
 mainStroke.Transparency = 1
 mainStroke.Parent = mainFrame
 
+-- Title Bar
 local titleBar = Instance.new("Frame")
 titleBar.Name = "TitleBar"
 titleBar.Size = UDim2.new(1, 0, 0, 40)
-titleBar.BackgroundColor3 = CONFIG.Colors.Surface
+titleBar.BackgroundColor3 = GetTheme().Surface
 titleBar.BorderSizePixel = 0
 titleBar.Parent = mainFrame
 
@@ -308,14 +487,14 @@ titleCorner.Parent = titleBar
 local titleBottom = Instance.new("Frame")
 titleBottom.Size = UDim2.new(1, 0, 0, 12)
 titleBottom.Position = UDim2.new(0, 0, 1, -12)
-titleBottom.BackgroundColor3 = CONFIG.Colors.Surface
+titleBottom.BackgroundColor3 = GetTheme().Surface
 titleBottom.BorderSizePixel = 0
 titleBottom.Parent = titleBar
 
 local titleIcon = Instance.new("TextLabel")
 titleIcon.Size = UDim2.new(0, 28, 0, 28)
 titleIcon.Position = UDim2.new(0, 8, 0.5, -14)
-titleIcon.BackgroundColor3 = CONFIG.Colors.Primary
+titleIcon.BackgroundColor3 = GetTheme().Primary
 titleIcon.Text = "📜"
 titleIcon.TextSize = 14
 titleIcon.Font = Enum.Font.GothamBold
@@ -328,20 +507,36 @@ iconCorner.CornerRadius = UDim.new(0, 6)
 iconCorner.Parent = titleIcon
 
 local titleLabel = Instance.new("TextLabel")
-titleLabel.Size = UDim2.new(1, -140, 1, 0)
+titleLabel.Size = UDim2.new(1, -172, 1, 0)
 titleLabel.Position = UDim2.new(0, 42, 0, 0)
 titleLabel.BackgroundTransparency = 1
-titleLabel.Text = "ROBLOX SCRIPT HUB"
-titleLabel.TextColor3 = CONFIG.Colors.Text
+titleLabel.Text = GetLang().title
+titleLabel.TextColor3 = GetTheme().Text
 titleLabel.Font = Enum.Font.GothamBold
 titleLabel.TextSize = 14
 titleLabel.TextXAlignment = Enum.TextXAlignment.Left
 titleLabel.Parent = titleBar
 
+-- Settings Button
+local settingsButton = Instance.new("TextButton")
+settingsButton.Size = UDim2.new(0, 28, 0, 28)
+settingsButton.Position = UDim2.new(1, -96, 0.5, -14)
+settingsButton.BackgroundColor3 = GetTheme().Primary
+settingsButton.Text = "⚙️"
+settingsButton.TextSize = 14
+settingsButton.Font = Enum.Font.GothamBold
+settingsButton.AutoButtonColor = false
+settingsButton.Parent = titleBar
+
+local settingsCorner = Instance.new("UICorner")
+settingsCorner.CornerRadius = UDim.new(0, 6)
+settingsCorner.Parent = settingsButton
+
+-- Minimize Button
 local minimizeButton = Instance.new("TextButton")
 minimizeButton.Size = UDim2.new(0, 28, 0, 28)
 minimizeButton.Position = UDim2.new(1, -64, 0.5, -14)
-minimizeButton.BackgroundColor3 = CONFIG.Colors.Warning
+minimizeButton.BackgroundColor3 = GetTheme().Warning
 minimizeButton.Text = "−"
 minimizeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 minimizeButton.Font = Enum.Font.GothamBold
@@ -353,10 +548,11 @@ local minCorner = Instance.new("UICorner")
 minCorner.CornerRadius = UDim.new(0, 6)
 minCorner.Parent = minimizeButton
 
+-- Close Button
 local closeButton = Instance.new("TextButton")
 closeButton.Size = UDim2.new(0, 28, 0, 28)
 closeButton.Position = UDim2.new(1, -32, 0.5, -14)
-closeButton.BackgroundColor3 = CONFIG.Colors.Danger
+closeButton.BackgroundColor3 = GetTheme().Danger
 closeButton.Text = "X"
 closeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 closeButton.Font = Enum.Font.GothamBold
@@ -368,18 +564,22 @@ local closeCorner = Instance.new("UICorner")
 closeCorner.CornerRadius = UDim.new(0, 6)
 closeCorner.Parent = closeButton
 
+-- Content Container
 local contentContainer = Instance.new("Frame")
 contentContainer.Size = UDim2.new(1, -16, 1, -52)
 contentContainer.Position = UDim2.new(0, 8, 0, 44)
 contentContainer.BackgroundTransparency = 1
 contentContainer.Parent = mainFrame
 
+-- Category Frame with Search
 local categoryFrame = Instance.new("ScrollingFrame")
-categoryFrame.Size = UDim2.new(0, 180, 1, 0)
-categoryFrame.BackgroundColor3 = CONFIG.Colors.Surface
+categoryFrame.Name = "CategoryFrame"
+categoryFrame.Size = UDim2.new(0, 180, 1, -40)
+categoryFrame.Position = UDim2.new(0, 0, 0, 40)
+categoryFrame.BackgroundColor3 = GetTheme().Surface
 categoryFrame.BorderSizePixel = 0
 categoryFrame.ScrollBarThickness = 4
-categoryFrame.ScrollBarImageColor3 = CONFIG.Colors.Primary
+categoryFrame.ScrollBarImageColor3 = GetTheme().Primary
 categoryFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
 categoryFrame.Parent = contentContainer
 
@@ -399,10 +599,51 @@ catPadding.PaddingLeft = UDim.new(0, 6)
 catPadding.PaddingRight = UDim.new(0, 6)
 catPadding.Parent = categoryFrame
 
+-- Category Search Bar
+local categorySearchContainer = Instance.new("Frame")
+categorySearchContainer.Size = UDim2.new(0, 180, 0, 34)
+categorySearchContainer.BackgroundColor3 = GetTheme().Surface
+categorySearchContainer.BorderSizePixel = 0
+categorySearchContainer.Parent = contentContainer
+
+local catSearchCorner = Instance.new("UICorner")
+catSearchCorner.CornerRadius = UDim.new(0, 8)
+catSearchCorner.Parent = categorySearchContainer
+
+local categorySearchBox = Instance.new("TextBox")
+categorySearchBox.Size = UDim2.new(1, -40, 1, -8)
+categorySearchBox.Position = UDim2.new(0, 4, 0, 4)
+categorySearchBox.BackgroundTransparency = 1
+categorySearchBox.PlaceholderText = GetLang().search
+categorySearchBox.PlaceholderColor3 = GetTheme().TextSecondary
+categorySearchBox.Text = ""
+categorySearchBox.TextColor3 = GetTheme().Text
+categorySearchBox.Font = Enum.Font.Gotham
+categorySearchBox.TextSize = 12
+categorySearchBox.TextXAlignment = Enum.TextXAlignment.Left
+categorySearchBox.ClearTextOnFocus = false
+categorySearchBox.Parent = categorySearchContainer
+
+local categorySearchBtn = Instance.new("TextButton")
+categorySearchBtn.Size = UDim2.new(0, 32, 0, 26)
+categorySearchBtn.Position = UDim2.new(1, -36, 0, 4)
+categorySearchBtn.BackgroundColor3 = GetTheme().Primary
+categorySearchBtn.Text = "🔍"
+categorySearchBtn.TextSize = 12
+categorySearchBtn.Font = Enum.Font.GothamBold
+categorySearchBtn.AutoButtonColor = false
+categorySearchBtn.Parent = categorySearchContainer
+
+local catSearchBtnCorner = Instance.new("UICorner")
+catSearchBtnCorner.CornerRadius = UDim.new(0, 6)
+catSearchBtnCorner.Parent = categorySearchBtn
+
+-- Script Container with Search
 local scriptContainer = Instance.new("Frame")
-scriptContainer.Size = UDim2.new(1, -188, 1, 0)
-scriptContainer.Position = UDim2.new(0, 188, 0, 0)
-scriptContainer.BackgroundColor3 = CONFIG.Colors.Surface
+scriptContainer.Name = "ScriptContainer"
+scriptContainer.Size = UDim2.new(1, -188, 1, -40)
+scriptContainer.Position = UDim2.new(0, 188, 0, 40)
+scriptContainer.BackgroundColor3 = GetTheme().Surface
 scriptContainer.BorderSizePixel = 0
 scriptContainer.Parent = contentContainer
 
@@ -410,6 +651,47 @@ local scriptCorner = Instance.new("UICorner")
 scriptCorner.CornerRadius = UDim.new(0, 8)
 scriptCorner.Parent = scriptContainer
 
+-- Script Search Bar
+local scriptSearchContainer = Instance.new("Frame")
+scriptSearchContainer.Size = UDim2.new(1, -188, 0, 34)
+scriptSearchContainer.Position = UDim2.new(0, 188, 0, 0)
+scriptSearchContainer.BackgroundColor3 = GetTheme().Surface
+scriptSearchContainer.BorderSizePixel = 0
+scriptSearchContainer.Parent = contentContainer
+
+local scriptSearchCorner = Instance.new("UICorner")
+scriptSearchCorner.CornerRadius = UDim.new(0, 8)
+scriptSearchCorner.Parent = scriptSearchContainer
+
+local scriptSearchBox = Instance.new("TextBox")
+scriptSearchBox.Size = UDim2.new(1, -40, 1, -8)
+scriptSearchBox.Position = UDim2.new(0, 4, 0, 4)
+scriptSearchBox.BackgroundTransparency = 1
+scriptSearchBox.PlaceholderText = GetLang().search
+scriptSearchBox.PlaceholderColor3 = GetTheme().TextSecondary
+scriptSearchBox.Text = ""
+scriptSearchBox.TextColor3 = GetTheme().Text
+scriptSearchBox.Font = Enum.Font.Gotham
+scriptSearchBox.TextSize = 12
+scriptSearchBox.TextXAlignment = Enum.TextXAlignment.Left
+scriptSearchBox.ClearTextOnFocus = false
+scriptSearchBox.Parent = scriptSearchContainer
+
+local scriptSearchBtn = Instance.new("TextButton")
+scriptSearchBtn.Size = UDim2.new(0, 32, 0, 26)
+scriptSearchBtn.Position = UDim2.new(1, -36, 0, 4)
+scriptSearchBtn.BackgroundColor3 = GetTheme().Primary
+scriptSearchBtn.Text = "🔍"
+scriptSearchBtn.TextSize = 12
+scriptSearchBtn.Font = Enum.Font.GothamBold
+scriptSearchBtn.AutoButtonColor = false
+scriptSearchBtn.Parent = scriptSearchContainer
+
+local scriptSearchBtnCorner = Instance.new("UICorner")
+scriptSearchBtnCorner.CornerRadius = UDim.new(0, 6)
+scriptSearchBtnCorner.Parent = scriptSearchBtn
+
+-- Placeholder Frame
 local placeholderFrame = Instance.new("Frame")
 placeholderFrame.Size = UDim2.new(1, 0, 1, 0)
 placeholderFrame.BackgroundTransparency = 1
@@ -419,20 +701,21 @@ local placeholderText = Instance.new("TextLabel")
 placeholderText.Size = UDim2.new(1, -32, 0, 60)
 placeholderText.Position = UDim2.new(0, 16, 0.5, -30)
 placeholderText.BackgroundTransparency = 1
-placeholderText.Text = "🎯\n\nSelect a category to view scripts"
-placeholderText.TextColor3 = CONFIG.Colors.TextSecondary
+placeholderText.Text = "🎯\n\n" .. GetLang().selectCategory
+placeholderText.TextColor3 = GetTheme().TextSecondary
 placeholderText.Font = Enum.Font.Gotham
 placeholderText.TextSize = 13
 placeholderText.TextWrapped = true
 placeholderText.Parent = placeholderFrame
 
+-- Content Frame
 local contentFrame = Instance.new("ScrollingFrame")
 contentFrame.Size = UDim2.new(1, -12, 1, -12)
 contentFrame.Position = UDim2.new(0, 6, 0, 6)
 contentFrame.BackgroundTransparency = 1
 contentFrame.BorderSizePixel = 0
 contentFrame.ScrollBarThickness = 4
-contentFrame.ScrollBarImageColor3 = CONFIG.Colors.Primary
+contentFrame.ScrollBarImageColor3 = GetTheme().Primary
 contentFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
 contentFrame.Visible = false
 contentFrame.Parent = scriptContainer
@@ -447,6 +730,195 @@ contentPadding.PaddingTop = UDim.new(0, 4)
 contentPadding.PaddingBottom = UDim.new(0, 4)
 contentPadding.Parent = contentFrame
 
+-- Settings Panel
+local settingsPanel = Instance.new("Frame")
+settingsPanel.Name = "SettingsPanel"
+settingsPanel.Size = UDim2.new(1, -16, 1, -52)
+settingsPanel.Position = UDim2.new(0, 8, 0, 44)
+settingsPanel.BackgroundColor3 = GetTheme().Surface
+settingsPanel.BorderSizePixel = 0
+settingsPanel.Visible = false
+settingsPanel.Parent = mainFrame
+
+local settingsPanelCorner = Instance.new("UICorner")
+settingsPanelCorner.CornerRadius = UDim.new(0, 8)
+settingsPanelCorner.Parent = settingsPanel
+
+local settingsList = Instance.new("UIListLayout")
+settingsList.Padding = UDim.new(0, 12)
+settingsList.SortOrder = Enum.SortOrder.LayoutOrder
+settingsList.Parent = settingsPanel
+
+local settingsPadding = Instance.new("UIPadding")
+settingsPadding.PaddingTop = UDim.new(0, 16)
+settingsPadding.PaddingBottom = UDim.new(0, 16)
+settingsPadding.PaddingLeft = UDim.new(0, 16)
+settingsPadding.PaddingRight = UDim.new(0, 16)
+settingsPadding.Parent = settingsPanel
+
+-- Theme Setting
+local themeContainer = Instance.new("Frame")
+themeContainer.Size = UDim2.new(1, 0, 0, 50)
+themeContainer.BackgroundColor3 = GetTheme().Background
+themeContainer.BorderSizePixel = 0
+themeContainer.Parent = settingsPanel
+
+local themeContainerCorner = Instance.new("UICorner")
+themeContainerCorner.CornerRadius = UDim.new(0, 8)
+themeContainerCorner.Parent = themeContainer
+
+local themeLabel = Instance.new("TextLabel")
+themeLabel.Size = UDim2.new(0.5, -8, 1, 0)
+themeLabel.Position = UDim2.new(0, 12, 0, 0)
+themeLabel.BackgroundTransparency = 1
+themeLabel.Text = GetLang().theme
+themeLabel.TextColor3 = GetTheme().Text
+themeLabel.Font = Enum.Font.GothamBold
+themeLabel.TextSize = 14
+themeLabel.TextXAlignment = Enum.TextXAlignment.Left
+themeLabel.Parent = themeContainer
+
+local themeButton = Instance.new("TextButton")
+themeButton.Size = UDim2.new(0.5, -24, 0, 36)
+themeButton.Position = UDim2.new(0.5, 12, 0.5, -18)
+themeButton.BackgroundColor3 = GetTheme().Primary
+themeButton.Text = CurrentTheme
+themeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+themeButton.Font = Enum.Font.GothamBold
+themeButton.TextSize = 13
+themeButton.AutoButtonColor = false
+themeButton.Parent = themeContainer
+
+local themeButtonCorner = Instance.new("UICorner")
+themeButtonCorner.CornerRadius = UDim.new(0, 6)
+themeButtonCorner.Parent = themeButton
+
+-- Language Setting
+local languageContainer = Instance.new("Frame")
+languageContainer.Size = UDim2.new(1, 0, 0, 50)
+languageContainer.BackgroundColor3 = GetTheme().Background
+languageContainer.BorderSizePixel = 0
+languageContainer.Parent = settingsPanel
+
+local languageContainerCorner = Instance.new("UICorner")
+languageContainerCorner.CornerRadius = UDim.new(0, 8)
+languageContainerCorner.Parent = languageContainer
+
+local languageLabel = Instance.new("TextLabel")
+languageLabel.Size = UDim2.new(0.5, -8, 1, 0)
+languageLabel.Position = UDim2.new(0, 12, 0, 0)
+languageLabel.BackgroundTransparency = 1
+languageLabel.Text = GetLang().language
+languageLabel.TextColor3 = GetTheme().Text
+languageLabel.Font = Enum.Font.GothamBold
+languageLabel.TextSize = 14
+languageLabel.TextXAlignment = Enum.TextXAlignment.Left
+languageLabel.Parent = languageContainer
+
+local languageButton = Instance.new("TextButton")
+languageButton.Size = UDim2.new(0.5, -24, 0, 36)
+languageButton.Position = UDim2.new(0.5, 12, 0.5, -18)
+languageButton.BackgroundColor3 = GetTheme().Primary
+languageButton.Text = CurrentLanguage
+languageButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+languageButton.Font = Enum.Font.GothamBold
+languageButton.TextSize = 13
+languageButton.AutoButtonColor = false
+languageButton.Parent = languageContainer
+
+local languageButtonCorner = Instance.new("UICorner")
+languageButtonCorner.CornerRadius = UDim.new(0, 6)
+languageButtonCorner.Parent = languageButton
+
+-- Theme Popup
+local themePopup = Instance.new("Frame")
+themePopup.Name = "ThemePopup"
+themePopup.Size = UDim2.new(1, 0, 1, 0)
+themePopup.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+themePopup.BackgroundTransparency = 1
+themePopup.BorderSizePixel = 0
+themePopup.Visible = false
+themePopup.ZIndex = 1500
+themePopup.Parent = screenGui
+
+local themePopupBox = Instance.new("Frame")
+themePopupBox.Size = UDim2.new(0, 350, 0, 300)
+themePopupBox.Position = UDim2.new(0.5, -175, 0.5, -150)
+themePopupBox.BackgroundColor3 = GetTheme().Surface
+themePopupBox.BorderSizePixel = 0
+themePopupBox.Parent = themePopup
+
+local themePopupCorner = Instance.new("UICorner")
+themePopupCorner.CornerRadius = UDim.new(0, 12)
+themePopupCorner.Parent = themePopupBox
+
+local themePopupTitle = Instance.new("TextLabel")
+themePopupTitle.Size = UDim2.new(1, -40, 0, 40)
+themePopupTitle.Position = UDim2.new(0, 20, 0, 15)
+themePopupTitle.BackgroundTransparency = 1
+themePopupTitle.Text = GetLang().theme
+themePopupTitle.TextColor3 = GetTheme().Text
+themePopupTitle.Font = Enum.Font.GothamBold
+themePopupTitle.TextSize = 18
+themePopupTitle.TextXAlignment = Enum.TextXAlignment.Left
+themePopupTitle.Parent = themePopupBox
+
+local themeOptionsContainer = Instance.new("Frame")
+themeOptionsContainer.Size = UDim2.new(1, -40, 1, -75)
+themeOptionsContainer.Position = UDim2.new(0, 20, 0, 60)
+themeOptionsContainer.BackgroundTransparency = 1
+themeOptionsContainer.Parent = themePopupBox
+
+local themeOptionsList = Instance.new("UIListLayout")
+themeOptionsList.Padding = UDim.new(0, 8)
+themeOptionsList.SortOrder = Enum.SortOrder.LayoutOrder
+themeOptionsList.Parent = themeOptionsContainer
+
+-- Language Popup
+local languagePopup = Instance.new("Frame")
+languagePopup.Name = "LanguagePopup"
+languagePopup.Size = UDim2.new(1, 0, 1, 0)
+languagePopup.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+languagePopup.BackgroundTransparency = 1
+languagePopup.BorderSizePixel = 0
+languagePopup.Visible = false
+languagePopup.ZIndex = 1500
+languagePopup.Parent = screenGui
+
+local languagePopupBox = Instance.new("Frame")
+languagePopupBox.Size = UDim2.new(0, 350, 0, 320)
+languagePopupBox.Position = UDim2.new(0.5, -175, 0.5, -160)
+languagePopupBox.BackgroundColor3 = GetTheme().Surface
+languagePopupBox.BorderSizePixel = 0
+languagePopupBox.Parent = languagePopup
+
+local languagePopupCorner = Instance.new("UICorner")
+languagePopupCorner.CornerRadius = UDim.new(0, 12)
+languagePopupCorner.Parent = languagePopupBox
+
+local languagePopupTitle = Instance.new("TextLabel")
+languagePopupTitle.Size = UDim2.new(1, -40, 0, 40)
+languagePopupTitle.Position = UDim2.new(0, 20, 0, 15)
+languagePopupTitle.BackgroundTransparency = 1
+languagePopupTitle.Text = GetLang().language
+languagePopupTitle.TextColor3 = GetTheme().Text
+languagePopupTitle.Font = Enum.Font.GothamBold
+languagePopupTitle.TextSize = 18
+languagePopupTitle.TextXAlignment = Enum.TextXAlignment.Left
+languagePopupTitle.Parent = languagePopupBox
+
+local languageOptionsContainer = Instance.new("Frame")
+languageOptionsContainer.Size = UDim2.new(1, -40, 1, -75)
+languageOptionsContainer.Position = UDim2.new(0, 20, 0, 60)
+languageOptionsContainer.BackgroundTransparency = 1
+languageOptionsContainer.Parent = languagePopupBox
+
+local languageOptionsList = Instance.new("UIListLayout")
+languageOptionsList.Padding = UDim.new(0, 8)
+languageOptionsList.SortOrder = Enum.SortOrder.LayoutOrder
+languageOptionsList.Parent = languageOptionsContainer
+
+-- Confirmation Popup
 local confirmationPopup = Instance.new("Frame")
 confirmationPopup.Name = "ConfirmationPopup"
 confirmationPopup.Size = UDim2.new(1, 0, 1, 0)
@@ -460,7 +932,7 @@ confirmationPopup.Parent = screenGui
 local popupBox = Instance.new("Frame")
 popupBox.Size = UDim2.new(0, 400, 0, 200)
 popupBox.Position = UDim2.new(0.5, -200, 0.5, -100)
-popupBox.BackgroundColor3 = CONFIG.Colors.Surface
+popupBox.BackgroundColor3 = GetTheme().Surface
 popupBox.BorderSizePixel = 0
 popupBox.Parent = confirmationPopup
 
@@ -468,18 +940,12 @@ local popupCorner = Instance.new("UICorner")
 popupCorner.CornerRadius = UDim.new(0, 12)
 popupCorner.Parent = popupBox
 
-local popupStroke = Instance.new("UIStroke")
-popupStroke.Color = CONFIG.Colors.Primary
-popupStroke.Thickness = 2
-popupStroke.Transparency = 0.5
-popupStroke.Parent = popupBox
-
 local popupTitle = Instance.new("TextLabel")
 popupTitle.Size = UDim2.new(1, -40, 0, 40)
 popupTitle.Position = UDim2.new(0, 20, 0, 20)
 popupTitle.BackgroundTransparency = 1
-popupTitle.Text = "Close Script Hub"
-popupTitle.TextColor3 = CONFIG.Colors.Text
+popupTitle.Text = GetLang().closeTitle
+popupTitle.TextColor3 = GetTheme().Text
 popupTitle.Font = Enum.Font.GothamBold
 popupTitle.TextSize = 18
 popupTitle.TextXAlignment = Enum.TextXAlignment.Left
@@ -489,8 +955,8 @@ local popupMessage = Instance.new("TextLabel")
 popupMessage.Size = UDim2.new(1, -40, 0, 60)
 popupMessage.Position = UDim2.new(0, 20, 0, 70)
 popupMessage.BackgroundTransparency = 1
-popupMessage.Text = "Are you sure you want to close this script?\nAll running scripts will be terminated."
-popupMessage.TextColor3 = CONFIG.Colors.TextSecondary
+popupMessage.Text = GetLang().closeMessage
+popupMessage.TextColor3 = GetTheme().TextSecondary
 popupMessage.Font = Enum.Font.Gotham
 popupMessage.TextSize = 14
 popupMessage.TextWrapped = true
@@ -507,8 +973,8 @@ popupButtonContainer.Parent = popupBox
 local popupNoButton = Instance.new("TextButton")
 popupNoButton.Size = UDim2.new(0.48, 0, 1, 0)
 popupNoButton.Position = UDim2.new(0, 0, 0, 0)
-popupNoButton.BackgroundColor3 = CONFIG.Colors.TextSecondary
-popupNoButton.Text = "No"
+popupNoButton.BackgroundColor3 = GetTheme().TextSecondary
+popupNoButton.Text = GetLang().no
 popupNoButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 popupNoButton.Font = Enum.Font.GothamBold
 popupNoButton.TextSize = 14
@@ -522,8 +988,8 @@ noCorner.Parent = popupNoButton
 local popupYesButton = Instance.new("TextButton")
 popupYesButton.Size = UDim2.new(0.48, 0, 1, 0)
 popupYesButton.Position = UDim2.new(0.52, 0, 0, 0)
-popupYesButton.BackgroundColor3 = CONFIG.Colors.Danger
-popupYesButton.Text = "Yes, Close"
+popupYesButton.BackgroundColor3 = GetTheme().Danger
+popupYesButton.Text = GetLang().yes
 popupYesButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 popupYesButton.Font = Enum.Font.GothamBold
 popupYesButton.TextSize = 14
@@ -534,28 +1000,7 @@ local yesCorner = Instance.new("UICorner")
 yesCorner.CornerRadius = UDim.new(0, 8)
 yesCorner.Parent = popupYesButton
 
-local function showConfirmPopup()
-    confirmationPopup.Visible = true
-    confirmationPopup.BackgroundTransparency = 1
-    popupBox.Size = UDim2.new(0, 320, 0, 160)
-    popupBox.Position = UDim2.new(0.5, -160, 0.5, -80)
-    
-    TweenService:Create(confirmationPopup, TweenInfo.new(0.2), {BackgroundTransparency = 0.5}):Play()
-    TweenService:Create(popupBox, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
-        Size = UDim2.new(0, 400, 0, 200),
-        Position = UDim2.new(0.5, -200, 0.5, -100)
-    }):Play()
-end
-
-local function hideConfirmPopup()
-    TweenService:Create(confirmationPopup, TweenInfo.new(0.2), {BackgroundTransparency = 1}):Play()
-    TweenService:Create(popupBox, TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.In), {
-        Size = UDim2.new(0, 320, 0, 160)
-    }):Play()
-    task.wait(0.2)
-    confirmationPopup.Visible = false
-end
-
+-- ==================== HELPER FUNCTIONS ====================
 local function createHoverEffect(button, normalColor, hoverColor)
     button.MouseEnter:Connect(function()
         TweenService:Create(button, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {BackgroundColor3 = hoverColor}):Play()
@@ -565,12 +1010,366 @@ local function createHoverEffect(button, normalColor, hoverColor)
     end)
 end
 
-local selectedCategory = nil
+local function showPopup(popup, box)
+    popup.Visible = true
+    popup.BackgroundTransparency = 1
+    box.Size = UDim2.new(0, box.Size.X.Offset * 0.8, 0, box.Size.Y.Offset * 0.8)
+    
+    TweenService:Create(popup, TweenInfo.new(0.2), {BackgroundTransparency = 0.5}):Play()
+    TweenService:Create(box, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+        Size = UDim2.new(0, box.Size.X.Offset / 0.8, 0, box.Size.Y.Offset / 0.8)
+    }):Play()
+end
 
+local function hidePopup(popup, box)
+    local originalSize = box.Size
+    TweenService:Create(popup, TweenInfo.new(0.2), {BackgroundTransparency = 1}):Play()
+    TweenService:Create(box, TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.In), {
+        Size = UDim2.new(0, originalSize.X.Offset * 0.8, 0, originalSize.Y.Offset * 0.8)
+    }):Play()
+    task.wait(0.2)
+    popup.Visible = false
+end
+
+-- ==================== THEME SYSTEM ====================
+local function applyTheme()
+    local theme = GetTheme()
+    
+    -- Main UI
+    mainFrame.BackgroundColor3 = theme.Background
+    mainStroke.Color = theme.Primary
+    titleBar.BackgroundColor3 = theme.Surface
+    titleBottom.BackgroundColor3 = theme.Surface
+    titleIcon.BackgroundColor3 = theme.Primary
+    titleLabel.TextColor3 = theme.Text
+    toggleButton.BackgroundColor3 = theme.Primary
+    
+    -- Buttons
+    settingsButton.BackgroundColor3 = theme.Primary
+    minimizeButton.BackgroundColor3 = theme.Warning
+    closeButton.BackgroundColor3 = theme.Danger
+    
+    -- Containers
+    categoryFrame.BackgroundColor3 = theme.Surface
+    categoryFrame.ScrollBarImageColor3 = theme.Primary
+    scriptContainer.BackgroundColor3 = theme.Surface
+    categorySearchContainer.BackgroundColor3 = theme.Surface
+    scriptSearchContainer.BackgroundColor3 = theme.Surface
+    
+    -- Search
+    categorySearchBox.TextColor3 = theme.Text
+    categorySearchBox.PlaceholderColor3 = theme.TextSecondary
+    categorySearchBtn.BackgroundColor3 = theme.Primary
+    scriptSearchBox.TextColor3 = theme.Text
+    scriptSearchBox.PlaceholderColor3 = theme.TextSecondary
+    scriptSearchBtn.BackgroundColor3 = theme.Primary
+    
+    -- Placeholder
+    placeholderText.TextColor3 = theme.TextSecondary
+    
+    -- Settings Panel
+    settingsPanel.BackgroundColor3 = theme.Surface
+    themeContainer.BackgroundColor3 = theme.Background
+    themeLabel.TextColor3 = theme.Text
+    themeButton.BackgroundColor3 = theme.Primary
+    languageContainer.BackgroundColor3 = theme.Background
+    languageLabel.TextColor3 = theme.Text
+    languageButton.BackgroundColor3 = theme.Primary
+    
+    -- Popups
+    themePopupBox.BackgroundColor3 = theme.Surface
+    themePopupTitle.TextColor3 = theme.Text
+    languagePopupBox.BackgroundColor3 = theme.Surface
+    languagePopupTitle.TextColor3 = theme.Text
+    popupBox.BackgroundColor3 = theme.Surface
+    popupTitle.TextColor3 = theme.Text
+    popupMessage.TextColor3 = theme.TextSecondary
+    popupNoButton.BackgroundColor3 = theme.TextSecondary
+    popupYesButton.BackgroundColor3 = theme.Danger
+    
+    -- Update all category buttons
+    for _, child in pairs(categoryFrame:GetChildren()) do
+        if child:IsA("TextButton") then
+            child.BackgroundColor3 = theme.Background
+            local textLabel = child:FindFirstChild("TextLabel")
+            if textLabel then
+                if child.Name == "SelectedCategory" then
+                    textLabel.TextColor3 = theme.Text
+                else
+                    textLabel.TextColor3 = theme.TextSecondary
+                end
+            end
+            local indicator = child:FindFirstChild("Frame")
+            if indicator then
+                indicator.BackgroundColor3 = theme.Primary
+            end
+            local badge = child:FindFirstChild("TextLabel") and child:FindFirstChild("TextLabel").NextSibling
+            if badge and badge:IsA("TextLabel") then
+                badge.BackgroundColor3 = theme.Primary
+            end
+        end
+    end
+    
+    -- Update all script cards
+    for _, child in pairs(contentFrame:GetChildren()) do
+        if child:IsA("Frame") then
+            child.BackgroundColor3 = theme.Background
+            local nameLabel = child:FindFirstChild("TextLabel")
+            if nameLabel then
+                nameLabel.TextColor3 = theme.Text
+            end
+            local executeBtn = child:FindFirstChild("TextButton")
+            if executeBtn and executeBtn.Text:find(GetLang().run) then
+                executeBtn.BackgroundColor3 = theme.Success
+            end
+        end
+    end
+end
+
+local function updateLanguage()
+    local lang = GetLang()
+    
+    titleLabel.Text = lang.title
+    placeholderText.Text = "🎯\n\n" .. lang.selectCategory
+    themeLabel.Text = lang.theme
+    languageLabel.Text = lang.language
+    popupTitle.Text = lang.closeTitle
+    popupMessage.Text = lang.closeMessage
+    popupNoButton.Text = lang.no
+    popupYesButton.Text = lang.yes
+    categorySearchBox.PlaceholderText = lang.search
+    scriptSearchBox.PlaceholderText = lang.search
+    themePopupTitle.Text = lang.theme
+    languagePopupTitle.Text = lang.language
+end
+
+-- ==================== THEME OPTIONS ====================
+local themeOptions = {"Dark", "Light", "Blue", "Green", "Yellow"}
+for _, themeName in ipairs(themeOptions) do
+    local optionButton = Instance.new("TextButton")
+    optionButton.Size = UDim2.new(1, 0, 0, 40)
+    optionButton.BackgroundColor3 = GetTheme().Background
+    optionButton.Text = themeName
+    optionButton.TextColor3 = GetTheme().Text
+    optionButton.Font = Enum.Font.GothamBold
+    optionButton.TextSize = 13
+    optionButton.AutoButtonColor = false
+    optionButton.Parent = themeOptionsContainer
+    
+    local optionCorner = Instance.new("UICorner")
+    optionCorner.CornerRadius = UDim.new(0, 6)
+    optionCorner.Parent = optionButton
+    
+    createHoverEffect(optionButton, GetTheme().Background, GetTheme().SurfaceHover)
+    
+    optionButton.MouseButton1Click:Connect(function()
+        CurrentTheme = themeName
+        UserSettings.theme = themeName
+        SaveSettings()
+        themeButton.Text = themeName
+        applyTheme()
+        hidePopup(themePopup, themePopupBox)
+    end)
+end
+
+-- ==================== LANGUAGE OPTIONS ====================
+local languageOptions = {
+    {code = "EN", name = "English"},
+    {code = "VI", name = "Tiếng Việt"},
+    {code = "RU", name = "Русский"},
+    {code = "FR", name = "Français"},
+    {code = "ES", name = "Español"}
+}
+
+for _, lang in ipairs(languageOptions) do
+    local optionButton = Instance.new("TextButton")
+    optionButton.Size = UDim2.new(1, 0, 0, 40)
+    optionButton.BackgroundColor3 = GetTheme().Background
+    optionButton.Text = lang.name
+    optionButton.TextColor3 = GetTheme().Text
+    optionButton.Font = Enum.Font.GothamBold
+    optionButton.TextSize = 13
+    optionButton.AutoButtonColor = false
+    optionButton.Parent = languageOptionsContainer
+    
+    local optionCorner = Instance.new("UICorner")
+    optionCorner.CornerRadius = UDim.new(0, 6)
+    optionCorner.Parent = optionButton
+    
+    createHoverEffect(optionButton, GetTheme().Background, GetTheme().SurfaceHover)
+    
+    optionButton.MouseButton1Click:Connect(function()
+        CurrentLanguage = lang.code
+        UserSettings.language = lang.code
+        SaveSettings()
+        languageButton.Text = lang.code
+        updateLanguage()
+        hidePopup(languagePopup, languagePopupBox)
+    end)
+end
+
+-- ==================== SCRIPT DATABASE ====================
+local scriptDatabase = {
+    {category = "Pressure", icon = "🔥", scripts = {{name = "Nullfire Hub", url = "https://rawscripts.net/raw/Pressure-WORKING-fire-hub-18064"}}},
+    {category = "The Forge", icon = "⚒️", scripts = {
+        {name = "Speed Hub X", url = "https://raw.githubusercontent.com/AhmadV99/Speed-Hub-X/main/Speed%20Hub%20X.lua"},
+        {name = "Forgex", url = "https://raw.githubusercontent.com/AnonymoDGH/scripts/refs/heads/main/forgex.lua"},
+        {name = "Chiyo", url = "https://raw.githubusercontent.com/kaisenlmao/loader/refs/heads/main/chiyo.lua"},
+        {name = "Haze", url = "https://haze.wtf/api/script"}
+    }},
+    {category = "Grow A Garden", icon = "🌱", scripts = {{name = "Speed Hub X", url = "https://raw.githubusercontent.com/AhmadV99/Speed-Hub-X/main/Speed%20Hub%20X.lua"}}},
+    {category = "Blox Fruit", icon = "🍇", scripts = {{name = "HoHo Hub", url = "https://raw.githubusercontent.com/acsu123/HOHO_H/main/Loading_UI"}}},
+    {category = "Refinery Cave 2", icon = "⛏️", scripts = {{name = "Refinery Cave 2", url = "https://raw.githubusercontent.com/Lucas559-noob/Roblox-Scripts/refs/heads/main/RC2"}}}
+}
+
+local selectedCategory = nil
+local currentScripts = {}
+
+-- ==================== SEARCH FUNCTIONS ====================
+local function highlightMatches(text, query, textLabel)
+    if query == "" then
+        textLabel.Text = text
+        return
+    end
+    
+    local lowerText = string.lower(text)
+    local lowerQuery = string.lower(query)
+    local startPos, endPos = string.find(lowerText, lowerQuery, 1, true)
+    
+    if startPos then
+        -- Create rich text with highlighted match
+        local before = string.sub(text, 1, startPos - 1)
+        local match = string.sub(text, startPos, endPos)
+        local after = string.sub(text, endPos + 1)
+        
+        textLabel.RichText = true
+        local highlightColor = GetTheme().Highlight
+        local hexColor = string.format("#%02X%02X%02X", 
+            math.floor(highlightColor.R * 255),
+            math.floor(highlightColor.G * 255),
+            math.floor(highlightColor.B * 255)
+        )
+        textLabel.Text = before .. '<b><font color="' .. hexColor .. '">' .. match .. '</font></b>' .. after
+    else
+        textLabel.RichText = false
+        textLabel.Text = text
+    end
+end
+
+local function searchCategories(query)
+    if not CanPerformAction("Search") then return end
+    
+    local lowerQuery = string.lower(query)
+    local found = false
+    
+    -- Show all if empty
+    if query == "" then
+        for _, child in pairs(categoryFrame:GetChildren()) do
+            if child:IsA("TextButton") then
+                child.Visible = true
+                local textLabel = child:FindFirstChild("TextLabel")
+                if textLabel then
+                    textLabel.RichText = false
+                    highlightMatches(textLabel.Text, "", textLabel)
+                end
+            end
+        end
+        categoryFrame.CanvasSize = UDim2.new(0, 0, 0, categoryList.AbsoluteContentSize.Y + 12)
+        return
+    end
+    
+    -- Search and highlight
+    for _, child in pairs(categoryFrame:GetChildren()) do
+        if child:IsA("TextButton") then
+            local textLabel = child:FindFirstChild("TextLabel")
+            if textLabel then
+                local categoryName = textLabel.Text:gsub("<.->", "") -- Remove any existing rich text tags
+                local lowerName = string.lower(categoryName)
+                
+                if string.find(lowerName, lowerQuery, 1, true) then
+                    child.Visible = true
+                    highlightMatches(categoryName, query, textLabel)
+                    found = true
+                else
+                    child.Visible = false
+                end
+            end
+        end
+    end
+    
+    categoryFrame.CanvasSize = UDim2.new(0, 0, 0, categoryList.AbsoluteContentSize.Y + 12)
+end
+
+local function searchScripts(query)
+    if not CanPerformAction("Search") then return end
+    
+    if #currentScripts == 0 then return end
+    
+    local lowerQuery = string.lower(query)
+    local found = false
+    
+    -- Show all if empty
+    if query == "" then
+        for _, child in pairs(contentFrame:GetChildren()) do
+            if child:IsA("Frame") then
+                child.Visible = true
+                local nameLabel = child:FindFirstChild("TextLabel")
+                if nameLabel then
+                    nameLabel.RichText = false
+                    local originalName = nameLabel.Text:gsub("<.->", "")
+                    highlightMatches(originalName, "", nameLabel)
+                end
+            end
+        end
+        
+        if placeholderFrame then
+            placeholderFrame.Visible = false
+        end
+        contentFrame.Visible = true
+        contentFrame.CanvasSize = UDim2.new(0, 0, 0, contentList.AbsoluteContentSize.Y + 8)
+        return
+    end
+    
+    -- Search and highlight
+    for _, child in pairs(contentFrame:GetChildren()) do
+        if child:IsA("Frame") then
+            local nameLabel = child:FindFirstChild("TextLabel")
+            if nameLabel then
+                local scriptName = nameLabel.Text:gsub("<.->", "")
+                local lowerName = string.lower(scriptName)
+                
+                if string.find(lowerName, lowerQuery, 1, true) then
+                    child.Visible = true
+                    highlightMatches(scriptName, query, nameLabel)
+                    found = true
+                else
+                    child.Visible = false
+                end
+            end
+        end
+    end
+    
+    if not found then
+        contentFrame.Visible = false
+        if placeholderFrame then
+            placeholderFrame.Visible = true
+            placeholderText.Text = GetLang().noResults
+        end
+    else
+        contentFrame.Visible = true
+        if placeholderFrame then
+            placeholderFrame.Visible = false
+        end
+    end
+    
+    contentFrame.CanvasSize = UDim2.new(0, 0, 0, contentList.AbsoluteContentSize.Y + 8)
+end
+
+-- ==================== CATEGORY CREATION ====================
 local function createCategoryButton(name, icon, scripts)
     local button = Instance.new("TextButton")
     button.Size = UDim2.new(1, 0, 0, 38)
-    button.BackgroundColor3 = CONFIG.Colors.Background
+    button.BackgroundColor3 = GetTheme().Background
     button.BorderSizePixel = 0
     button.Text = ""
     button.AutoButtonColor = false
@@ -583,7 +1382,7 @@ local function createCategoryButton(name, icon, scripts)
     local indicator = Instance.new("Frame")
     indicator.Size = UDim2.new(0, 3, 0.7, 0)
     indicator.Position = UDim2.new(0, 2, 0.15, 0)
-    indicator.BackgroundColor3 = CONFIG.Colors.Primary
+    indicator.BackgroundColor3 = GetTheme().Primary
     indicator.BorderSizePixel = 0
     indicator.Visible = false
     indicator.Parent = button
@@ -597,7 +1396,7 @@ local function createCategoryButton(name, icon, scripts)
     textLabel.Position = UDim2.new(0, 10, 0, 0)
     textLabel.BackgroundTransparency = 1
     textLabel.Text = name
-    textLabel.TextColor3 = CONFIG.Colors.TextSecondary
+    textLabel.TextColor3 = GetTheme().TextSecondary
     textLabel.Font = Enum.Font.GothamSemibold
     textLabel.TextSize = 13
     textLabel.TextXAlignment = Enum.TextXAlignment.Left
@@ -606,7 +1405,7 @@ local function createCategoryButton(name, icon, scripts)
     local badge = Instance.new("TextLabel")
     badge.Size = UDim2.new(0, 22, 0, 16)
     badge.Position = UDim2.new(1, -26, 0.5, -8)
-    badge.BackgroundColor3 = CONFIG.Colors.Primary
+    badge.BackgroundColor3 = GetTheme().Primary
     badge.Text = tostring(#scripts)
     badge.TextColor3 = Color3.fromRGB(255, 255, 255)
     badge.Font = Enum.Font.GothamBold
@@ -617,20 +1416,26 @@ local function createCategoryButton(name, icon, scripts)
     badgeCorner.CornerRadius = UDim.new(0.5, 0)
     badgeCorner.Parent = badge
     
-    createHoverEffect(button, CONFIG.Colors.Background, CONFIG.Colors.SurfaceHover)
+    createHoverEffect(button, GetTheme().Background, GetTheme().SurfaceHover)
     
     button.MouseButton1Click:Connect(function()
         if not CanPerformAction("Category") then return end
         
+        -- Reset search
+        scriptSearchBox.Text = ""
+        
         if selectedCategory then
             selectedCategory.Indicator.Visible = false
-            selectedCategory.TextLabel.TextColor3 = CONFIG.Colors.TextSecondary
+            selectedCategory.TextLabel.TextColor3 = GetTheme().TextSecondary
+            selectedCategory.Button.Name = ""
         end
         
-        selectedCategory = {Indicator = indicator, TextLabel = textLabel}
+        selectedCategory = {Indicator = indicator, TextLabel = textLabel, Button = button}
+        button.Name = "SelectedCategory"
         indicator.Visible = true
-        textLabel.TextColor3 = CONFIG.Colors.Text
+        textLabel.TextColor3 = GetTheme().Text
         
+        -- Clear existing scripts with animation
         for _, child in pairs(contentFrame:GetChildren()) do
             if child:IsA("Frame") then 
                 TweenService:Create(child, TweenInfo.new(0.15), {
@@ -648,11 +1453,13 @@ local function createCategoryButton(name, icon, scripts)
         
         placeholderFrame.Visible = false
         contentFrame.Visible = true
+        currentScripts = scripts
         
+        -- Create script cards
         for i, scriptData in ipairs(scripts) do
             local scriptCard = Instance.new("Frame")
             scriptCard.Size = UDim2.new(1, 0, 0, 0)
-            scriptCard.BackgroundColor3 = CONFIG.Colors.Background
+            scriptCard.BackgroundColor3 = GetTheme().Background
             scriptCard.BorderSizePixel = 0
             scriptCard.BackgroundTransparency = 1
             scriptCard.Parent = contentFrame
@@ -666,7 +1473,7 @@ local function createCategoryButton(name, icon, scripts)
             scriptName.Position = UDim2.new(0, 10, 0, 0)
             scriptName.BackgroundTransparency = 1
             scriptName.Text = scriptData.name
-            scriptName.TextColor3 = CONFIG.Colors.Text
+            scriptName.TextColor3 = GetTheme().Text
             scriptName.Font = Enum.Font.GothamBold
             scriptName.TextSize = 13
             scriptName.TextXAlignment = Enum.TextXAlignment.Left
@@ -677,8 +1484,8 @@ local function createCategoryButton(name, icon, scripts)
             local executeBtn = Instance.new("TextButton")
             executeBtn.Size = UDim2.new(0, 85, 0, 32)
             executeBtn.Position = UDim2.new(1, -90, 0.5, -16)
-            executeBtn.BackgroundColor3 = CONFIG.Colors.Success
-            executeBtn.Text = "▶ RUN"
+            executeBtn.BackgroundColor3 = GetTheme().Success
+            executeBtn.Text = "▶ " .. GetLang().run
             executeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
             executeBtn.Font = Enum.Font.GothamBold
             executeBtn.TextSize = 11
@@ -691,7 +1498,7 @@ local function createCategoryButton(name, icon, scripts)
             execCorner.CornerRadius = UDim.new(0, 6)
             execCorner.Parent = executeBtn
             
-            createHoverEffect(executeBtn, CONFIG.Colors.Success, Color3.fromRGB(77, 191, 139))
+            createHoverEffect(executeBtn, GetTheme().Success, Color3.fromRGB(77, 191, 139))
             
             task.delay(i * 0.05, function()
                 TweenService:Create(scriptCard, TweenInfo.new(0.25, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
@@ -708,24 +1515,24 @@ local function createCategoryButton(name, icon, scripts)
             
             executeBtn.MouseButton1Click:Connect(function()
                 if not CanPerformAction("Execute") then return end
+                local originalText = executeBtn.Text
                 executeBtn.Text = "⏳..."
-                executeBtn.BackgroundColor3 = CONFIG.Colors.Warning
-                showLoadingScreen()
+                executeBtn.BackgroundColor3 = GetTheme().Warning
                 task.spawn(function()
                     local success, err = pcall(function()
                         loadstring(game:HttpGet(scriptData.url, true))()
                     end)
                     task.wait(0.5)
                     if success then
-                        executeBtn.Text = "✓ OK"
-                        executeBtn.BackgroundColor3 = CONFIG.Colors.Success
+                        executeBtn.Text = "✓ " .. GetLang().ok
+                        executeBtn.BackgroundColor3 = GetTheme().Success
                     else
-                        executeBtn.Text = "✕ ERROR"
-                        executeBtn.BackgroundColor3 = CONFIG.Colors.Danger
+                        executeBtn.Text = "✕ " .. GetLang().error
+                        executeBtn.BackgroundColor3 = GetTheme().Danger
                     end
                     task.wait(1.5)
-                    executeBtn.Text = "▶ RUN"
-                    executeBtn.BackgroundColor3 = CONFIG.Colors.Success
+                    executeBtn.Text = originalText
+                    executeBtn.BackgroundColor3 = GetTheme().Success
                 end)
             end)
         end
@@ -734,72 +1541,64 @@ local function createCategoryButton(name, icon, scripts)
     end)
 end
 
-local scriptDatabase = {
-    {category = "Pressure", icon = "🔥", scripts = {{name = "Nullfire Hub", url = "https://rawscripts.net/raw/Pressure-WORKING-fire-hub-18064"}}},
-    {category = "The Forge", icon = "⚒️", scripts = {
-        {name = "Speed Hub X", url = "https://raw.githubusercontent.com/AhmadV99/Speed-Hub-X/main/Speed%20Hub%20X.lua"},
-        {name = "Forgex", url = "https://raw.githubusercontent.com/AnonymoDGH/scripts/refs/heads/main/forgex.lua"},
-        {name = "Chiyo", url = "https://raw.githubusercontent.com/kaisenlmao/loader/refs/heads/main/chiyo.lua"},
-        {name = "Haze", url = "https://haze.wtf/api/script"}
-    }},
-    {category = "Grow A Garden", icon = "🌱", scripts = {{name = "Speed Hub X", url = "https://raw.githubusercontent.com/AhmadV99/Speed-Hub-X/main/Speed%20Hub%20X.lua"}}},
-    {category = "Blox Fruit", icon = "🍇", scripts = {{name = "HoHo Hub", url = "https://raw.githubusercontent.com/acsu123/HOHO_H/main/Loading_UI"}}},
-    {category = "Refinery Cave 2", icon = "⛏️", scripts = {{name = "Refinery Cave 2", url = "https://raw.githubusercontent.com/Lucas559-noob/Roblox-Scripts/refs/heads/main/RC2"}}}
-}
-
+-- Create all category buttons
 for _, data in ipairs(scriptDatabase) do
     createCategoryButton(data.category, data.icon, data.scripts)
 end
 
 categoryFrame.CanvasSize = UDim2.new(0, 0, 0, categoryList.AbsoluteContentSize.Y + 12)
 
-local toggleDragging = false
-local toggleDragStart = nil
-local toggleStartPos = nil
-local toggleMoveThreshold = 10
-local isTogglePressed = false
+-- ==================== SEARCH BUTTON HANDLERS ====================
+categorySearchBtn.MouseButton1Click:Connect(function()
+    searchCategories(categorySearchBox.Text)
+end)
 
-local function getInputPosition(input)
-    if input.UserInputType == Enum.UserInputType.Touch then
-        return input.Position
+categorySearchBox:GetPropertyChangedSignal("Text"):Connect(function()
+    searchCategories(categorySearchBox.Text)
+end)
+
+scriptSearchBtn.MouseButton1Click:Connect(function()
+    searchScripts(scriptSearchBox.Text)
+end)
+
+scriptSearchBox:GetPropertyChangedSignal("Text"):Connect(function()
+    searchScripts(scriptSearchBox.Text)
+end)
+
+-- ==================== SETTINGS HANDLERS ====================
+settingsButton.MouseButton1Click:Connect(function()
+    local isSettingsVisible = settingsPanel.Visible
+    
+    if isSettingsVisible then
+        settingsPanel.Visible = false
+        contentContainer.Visible = true
     else
-        return UserInputService:GetMouseLocation()
-    end
-end
-
-toggleButton.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-        isTogglePressed = true
-        toggleDragging = false
-        toggleDragStart = getInputPosition(input)
-        toggleStartPos = toggleButton.Position
+        contentContainer.Visible = false
+        settingsPanel.Visible = true
     end
 end)
 
-toggleButton.InputEnded:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-        if not toggleDragging then
-            toggleGUI()
-        end
-        toggleDragging = false
-        isTogglePressed = false
-        toggleDragStart = nil
-    end
+themeButton.MouseButton1Click:Connect(function()
+    showPopup(themePopup, themePopupBox)
 end)
 
-UserInputService.InputChanged:Connect(function(input)
-    if isTogglePressed and toggleDragStart and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
-        local currentPos = getInputPosition(input)
-        local delta = currentPos - toggleDragStart
-        local distance = math.sqrt(delta.X * delta.X + delta.Y * delta.Y)
-        
-        if distance > toggleMoveThreshold then
-            toggleDragging = true
-            toggleButton.Position = UDim2.new(toggleStartPos.X.Scale, toggleStartPos.X.Offset + delta.X, toggleStartPos.Y.Scale, toggleStartPos.Y.Offset + delta.Y)
-        end
-    end
+languageButton.MouseButton1Click:Connect(function()
+    showPopup(languagePopup, languagePopupBox)
 end)
 
+-- Close popups when clicking outside
+themePopup.MouseButton1Click:Connect(function()
+    hidePopup(themePopup, themePopupBox)
+end)
+
+languagePopup.MouseButton1Click:Connect(function()
+    hidePopup(languagePopup, languagePopupBox)
+end)
+
+themePopupBox.MouseButton1Click:Connect(function() end)
+languagePopupBox.MouseButton1Click:Connect(function() end)
+
+-- ==================== TOGGLE & DRAGGING ====================
 local isVisible = false
 local savedSize = nil
 local savedPosition = nil
@@ -843,11 +1642,58 @@ function toggleGUI()
     end
 end
 
+-- Toggle button drag
+local toggleDragging = false
+local toggleDragStart = nil
+local toggleStartPos = nil
+local isTogglePressed = false
+
+local function getInputPosition(input)
+    if input.UserInputType == Enum.UserInputType.Touch then
+        return input.Position
+    else
+        return UserInputService:GetMouseLocation()
+    end
+end
+
+toggleButton.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        isTogglePressed = true
+        toggleDragging = false
+        toggleDragStart = getInputPosition(input)
+        toggleStartPos = toggleButton.Position
+    end
+end)
+
+toggleButton.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        if not toggleDragging then
+            toggleGUI()
+        end
+        toggleDragging = false
+        isTogglePressed = false
+        toggleDragStart = nil
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if isTogglePressed and toggleDragStart and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+        local currentPos = getInputPosition(input)
+        local delta = currentPos - toggleDragStart
+        local distance = math.sqrt(delta.X * delta.X + delta.Y * delta.Y)
+        
+        if distance > 10 then
+            toggleDragging = true
+            toggleButton.Position = UDim2.new(toggleStartPos.X.Scale, toggleStartPos.X.Offset + delta.X, toggleStartPos.Y.Scale, toggleStartPos.Y.Offset + delta.Y)
+        end
+    end
+end)
+
+-- Main frame dragging
 local dragging = false
 local dragInput = nil
 local dragStart = nil
 local startPos = nil
-local dragThreshold = 10
 local hasMoved = false
 
 titleBar.InputBegan:Connect(function(input)
@@ -873,7 +1719,7 @@ UserInputService.InputChanged:Connect(function(input)
         local delta = currentPos - dragStart
         local distance = math.sqrt(delta.X * delta.X + delta.Y * delta.Y)
         
-        if distance > dragThreshold or hasMoved then
+        if distance > 10 or hasMoved then
             dragging = true
             hasMoved = true
             mainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
@@ -881,12 +1727,12 @@ UserInputService.InputChanged:Connect(function(input)
     end
 end)
 
+-- Resizing with improved hitbox
 local resizing = false
 local resizeCorner = nil
 local resizeStart = nil
 local resizeStartSize = nil
 local resizeStartPos = nil
-local resizeThreshold = 25
 
 mainFrame.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
@@ -896,13 +1742,15 @@ mainFrame.InputBegan:Connect(function(input)
         local relX = mousePos.X - framePos.X
         local relY = mousePos.Y - framePos.Y
         
-        if relX <= resizeThreshold and relY <= resizeThreshold then
+        local hitbox = CONFIG.ResizeHitbox
+        
+        if relX <= hitbox and relY <= hitbox then
             resizeCorner = "TopLeft"
-        elseif relX >= frameSize.X - resizeThreshold and relY <= resizeThreshold then
+        elseif relX >= frameSize.X - hitbox and relY <= hitbox then
             resizeCorner = "TopRight"
-        elseif relX <= resizeThreshold and relY >= frameSize.Y - resizeThreshold then
+        elseif relX <= hitbox and relY >= frameSize.Y - hitbox then
             resizeCorner = "BottomLeft"
-        elseif relX >= frameSize.X - resizeThreshold and relY >= frameSize.Y - resizeThreshold then
+        elseif relX >= frameSize.X - hitbox and relY >= frameSize.Y - hitbox then
             resizeCorner = "BottomRight"
         else
             return
@@ -957,18 +1805,33 @@ UserInputService.InputChanged:Connect(function(input)
     end
 end)
 
+-- ==================== BUTTON HANDLERS ====================
 minimizeButton.MouseButton1Click:Connect(function() toggleGUI() end)
 
 closeButton.MouseButton1Click:Connect(function()
-    showConfirmPopup()
+    confirmationPopup.Visible = true
+    confirmationPopup.BackgroundTransparency = 1
+    popupBox.Size = UDim2.new(0, 320, 0, 160)
+    popupBox.Position = UDim2.new(0.5, -160, 0.5, -80)
+    
+    TweenService:Create(confirmationPopup, TweenInfo.new(0.2), {BackgroundTransparency = 0.5}):Play()
+    TweenService:Create(popupBox, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+        Size = UDim2.new(0, 400, 0, 200),
+        Position = UDim2.new(0.5, -200, 0.5, -100)
+    }):Play()
 end)
 
 popupNoButton.MouseButton1Click:Connect(function()
-    hideConfirmPopup()
+    TweenService:Create(confirmationPopup, TweenInfo.new(0.2), {BackgroundTransparency = 1}):Play()
+    TweenService:Create(popupBox, TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.In), {
+        Size = UDim2.new(0, 320, 0, 160)
+    }):Play()
+    task.wait(0.2)
+    confirmationPopup.Visible = false
 end)
 
 popupYesButton.MouseButton1Click:Connect(function()
-    hideConfirmPopup()
+    TweenService:Create(confirmationPopup, TweenInfo.new(0.2), {BackgroundTransparency = 1}):Play()
     task.wait(0.2)
     TweenService:Create(mainFrame, TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.In), {
         Size = UDim2.new(0, 0, 0, 0),
@@ -984,16 +1847,27 @@ popupYesButton.MouseButton1Click:Connect(function()
     screenGui:Destroy()
 end)
 
-createHoverEffect(minimizeButton, CONFIG.Colors.Warning, Color3.fromRGB(255, 180, 50))
-createHoverEffect(closeButton, CONFIG.Colors.Danger, Color3.fromRGB(255, 80, 80))
-createHoverEffect(popupNoButton, CONFIG.Colors.TextSecondary, Color3.fromRGB(165, 167, 170))
-createHoverEffect(popupYesButton, CONFIG.Colors.Danger, Color3.fromRGB(255, 80, 80))
+-- Hover effects
+createHoverEffect(settingsButton, GetTheme().Primary, Color3.fromRGB(108, 121, 255))
+createHoverEffect(minimizeButton, GetTheme().Warning, Color3.fromRGB(255, 180, 50))
+createHoverEffect(closeButton, GetTheme().Danger, Color3.fromRGB(255, 80, 80))
+createHoverEffect(popupNoButton, GetTheme().TextSecondary, Color3.fromRGB(165, 167, 170))
+createHoverEffect(popupYesButton, GetTheme().Danger, Color3.fromRGB(255, 80, 80))
+createHoverEffect(categorySearchBtn, GetTheme().Primary, Color3.fromRGB(108, 121, 255))
+createHoverEffect(scriptSearchBtn, GetTheme().Primary, Color3.fromRGB(108, 121, 255))
+
+-- ==================== INITIAL LOAD ====================
+applyTheme()
+updateLanguage()
 
 task.wait(2.5)
 toggleGUI()
 
 print("===========================================")
-print("🎮 ROBLOX SCRIPT HUB")
+print("🎮 ROBLOX SCRIPT HUB V2.0")
 print("✅ Loaded successfully!")
 print("📱 Mobile & PC supported")
+print("🌍 Multi-language support")
+print("🎨 Theme system enabled")
+print("🔍 Advanced search enabled")
 print("===========================================")
