@@ -1,17 +1,3 @@
---[[
-    ROBLOX SCRIPT HUB V2.0 - ENHANCED EDITION
-    Features:
-    - HWID Tracking via Discord Webhook
-    - Multi-language Support (EN, VI, RU, FR, ES)
-    - Theme System (Light, Dark, Blue, Green, Yellow)
-    - Advanced Search with Highlighting
-    - Settings Panel with Data Persistence
-    - Improved Resize System
-    - Anti-Spam Protection
-    - Smooth Animations
-    - Mobile & Desktop Support
-]]
-
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
@@ -19,7 +5,6 @@ local Players = game:GetService("Players")
 local HttpService = game:GetService("HttpService")
 local LocalPlayer = Players.LocalPlayer
 
--- ==================== CONFIGURATION ====================
 local CONFIG = {
     WebhookURL = "https://discord.com/api/webhooks/1404784419545546813/EWBH0qWyoRrZPUiQj3q8sagsrx7SKEF2PhXIyk9miFQ_bsD6Nh0AlcumRfnrTPcWsRxr",
     DataFolder = "ScriptHub",
@@ -30,7 +15,6 @@ local CONFIG = {
     ResizeHitbox = 35,
 }
 
--- ==================== THEME SYSTEM ====================
 local THEMES = {
     Dark = {
         Primary = Color3.fromRGB(88, 101, 242),
@@ -99,7 +83,6 @@ local THEMES = {
     }
 }
 
--- ==================== LANGUAGE SYSTEM ====================
 local LANGUAGES = {
     EN = {
         title = "ROBLOX SCRIPT HUB",
@@ -218,7 +201,6 @@ local LANGUAGES = {
     }
 }
 
--- ==================== GLOBAL STATE ====================
 local CurrentTheme = "Dark"
 local CurrentLanguage = "EN"
 local UserSettings = {
@@ -226,10 +208,15 @@ local UserSettings = {
     language = "EN"
 }
 
--- ==================== UTILITY FUNCTIONS ====================
 local function GetHWID()
-    local hwid = game:GetService("RbxAnalyticsService"):GetClientId()
-    return hwid
+    local success, result = pcall(function()
+        return game:GetService("RbxAnalyticsService"):GetClientId()
+    end)
+    if success then
+        return result
+    else
+        return "HWID_ERROR"
+    end
 end
 
 local function SendWebhook(hwid)
@@ -250,55 +237,61 @@ local function SendWebhook(hwid)
     }
     
     pcall(function()
-        syn.request({
-            Url = CONFIG.WebhookURL,
-            Method = "POST",
-            Headers = {["Content-Type"] = "application/json"},
-            Body = HttpService:JSONEncode(data)
-        })
+        local requestFunc = syn and syn.request or http_request or request
+        if requestFunc then
+            requestFunc({
+                Url = CONFIG.WebhookURL,
+                Method = "POST",
+                Headers = {["Content-Type"] = "application/json"},
+                Body = HttpService:JSONEncode(data)
+            })
+        end
     end)
 end
 
 local function SaveSettings()
-    if not isfolder(CONFIG.DataFolder) then
-        makefolder(CONFIG.DataFolder)
-    end
-    
-    local filepath = CONFIG.DataFolder .. "/" .. CONFIG.SettingsFile
-    local data = HttpService:JSONEncode(UserSettings)
-    writefile(filepath, data)
+    pcall(function()
+        if not isfolder(CONFIG.DataFolder) then
+            makefolder(CONFIG.DataFolder)
+        end
+        
+        local filepath = CONFIG.DataFolder .. "/" .. CONFIG.SettingsFile
+        local data = HttpService:JSONEncode(UserSettings)
+        writefile(filepath, data)
+    end)
 end
 
 local function LoadSettings()
-    if not isfolder(CONFIG.DataFolder) then
-        makefolder(CONFIG.DataFolder)
-    end
-    
-    local filepath = CONFIG.DataFolder .. "/" .. CONFIG.SettingsFile
-    
-    if isfile(filepath) then
-        local success, data = pcall(function()
-            return HttpService:JSONDecode(readfile(filepath))
-        end)
-        
-        if success and data then
-            UserSettings = data
-            CurrentTheme = UserSettings.theme or "Dark"
-            CurrentLanguage = UserSettings.language or "EN"
-            return true
+    local success = pcall(function()
+        if not isfolder(CONFIG.DataFolder) then
+            makefolder(CONFIG.DataFolder)
         end
-    end
+        
+        local filepath = CONFIG.DataFolder .. "/" .. CONFIG.SettingsFile
+        
+        if isfile(filepath) then
+            local data = HttpService:JSONDecode(readfile(filepath))
+            if data then
+                UserSettings = data
+                CurrentTheme = UserSettings.theme or "Dark"
+                CurrentLanguage = UserSettings.language or "EN"
+                return true
+            end
+        end
+    end)
     
-    SaveSettings()
-    return false
+    if not success then
+        SaveSettings()
+    end
+    return success
 end
 
 local function GetTheme()
-    return THEMES[CurrentTheme]
+    return THEMES[CurrentTheme] or THEMES.Dark
 end
 
 local function GetLang()
-    return LANGUAGES[CurrentLanguage]
+    return LANGUAGES[CurrentLanguage] or LANGUAGES.EN
 end
 
 local function HighlightText(text, searchQuery)
@@ -314,7 +307,6 @@ local function HighlightText(text, searchQuery)
     return text
 end
 
--- ==================== ANTI-SPAM SYSTEM ====================
 local AntiSpam = {
     LastAction = {},
     Cooldowns = {Toggle = 0.3, Resize = 0.05, Drag = 0.05, Execute = 1.0, Category = 0.2, Search = 0.3}
@@ -331,7 +323,6 @@ local function CanPerformAction(actionName)
     return false
 end
 
--- ==================== GUI CREATION ====================
 LoadSettings()
 local hwid = GetHWID()
 SendWebhook(hwid)
@@ -343,7 +334,6 @@ screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 screenGui.IgnoreGuiInset = true
 screenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 
--- Startup Loading Screen
 local startupLoading = Instance.new("Frame")
 startupLoading.Name = "StartupLoading"
 startupLoading.Size = UDim2.new(1, 0, 1, 0)
@@ -414,7 +404,6 @@ task.delay(2, function()
     startupLoading:Destroy()
 end)
 
--- Toggle Button
 local toggleButton = Instance.new("TextButton")
 toggleButton.Name = "ToggleButton"
 toggleButton.Size = UDim2.new(0, 50, 0, 50)
@@ -453,7 +442,6 @@ for i = 1, 3 do
     lineCorner.Parent = line
 end
 
--- Main Frame
 local mainFrame = Instance.new("Frame")
 mainFrame.Name = "MainFrame"
 mainFrame.Size = UDim2.new(0, CONFIG.DefaultSize.Width, 0, CONFIG.DefaultSize.Height)
@@ -474,7 +462,6 @@ mainStroke.Thickness = 2
 mainStroke.Transparency = 1
 mainStroke.Parent = mainFrame
 
--- Title Bar
 local titleBar = Instance.new("Frame")
 titleBar.Name = "TitleBar"
 titleBar.Size = UDim2.new(1, 0, 0, 40)
@@ -519,7 +506,6 @@ titleLabel.TextSize = 14
 titleLabel.TextXAlignment = Enum.TextXAlignment.Left
 titleLabel.Parent = titleBar
 
--- Settings Button
 local settingsButton = Instance.new("TextButton")
 settingsButton.Size = UDim2.new(0, 28, 0, 28)
 settingsButton.Position = UDim2.new(1, -96, 0.5, -14)
@@ -534,7 +520,6 @@ local settingsCorner = Instance.new("UICorner")
 settingsCorner.CornerRadius = UDim.new(0, 6)
 settingsCorner.Parent = settingsButton
 
--- Minimize Button
 local minimizeButton = Instance.new("TextButton")
 minimizeButton.Size = UDim2.new(0, 28, 0, 28)
 minimizeButton.Position = UDim2.new(1, -64, 0.5, -14)
@@ -550,7 +535,6 @@ local minCorner = Instance.new("UICorner")
 minCorner.CornerRadius = UDim.new(0, 6)
 minCorner.Parent = minimizeButton
 
--- Close Button
 local closeButton = Instance.new("TextButton")
 closeButton.Size = UDim2.new(0, 28, 0, 28)
 closeButton.Position = UDim2.new(1, -32, 0.5, -14)
@@ -566,14 +550,12 @@ local closeCorner = Instance.new("UICorner")
 closeCorner.CornerRadius = UDim.new(0, 6)
 closeCorner.Parent = closeButton
 
--- Content Container
 local contentContainer = Instance.new("Frame")
 contentContainer.Size = UDim2.new(1, -16, 1, -52)
 contentContainer.Position = UDim2.new(0, 8, 0, 44)
 contentContainer.BackgroundTransparency = 1
 contentContainer.Parent = mainFrame
 
--- Category Frame with Search
 local categoryFrame = Instance.new("ScrollingFrame")
 categoryFrame.Name = "CategoryFrame"
 categoryFrame.Size = UDim2.new(0, 180, 1, -40)
@@ -601,7 +583,6 @@ catPadding.PaddingLeft = UDim.new(0, 6)
 catPadding.PaddingRight = UDim.new(0, 6)
 catPadding.Parent = categoryFrame
 
--- Category Search Bar
 local categorySearchContainer = Instance.new("Frame")
 categorySearchContainer.Size = UDim2.new(0, 180, 0, 34)
 categorySearchContainer.BackgroundColor3 = GetTheme().Surface
@@ -640,7 +621,6 @@ local catSearchBtnCorner = Instance.new("UICorner")
 catSearchBtnCorner.CornerRadius = UDim.new(0, 6)
 catSearchBtnCorner.Parent = categorySearchBtn
 
--- Script Container with Search
 local scriptContainer = Instance.new("Frame")
 scriptContainer.Name = "ScriptContainer"
 scriptContainer.Size = UDim2.new(1, -188, 1, -40)
@@ -653,7 +633,6 @@ local scriptCorner = Instance.new("UICorner")
 scriptCorner.CornerRadius = UDim.new(0, 8)
 scriptCorner.Parent = scriptContainer
 
--- Script Search Bar
 local scriptSearchContainer = Instance.new("Frame")
 scriptSearchContainer.Size = UDim2.new(1, -188, 0, 34)
 scriptSearchContainer.Position = UDim2.new(0, 188, 0, 0)
@@ -693,7 +672,6 @@ local scriptSearchBtnCorner = Instance.new("UICorner")
 scriptSearchBtnCorner.CornerRadius = UDim.new(0, 6)
 scriptSearchBtnCorner.Parent = scriptSearchBtn
 
--- Placeholder Frame
 local placeholderFrame = Instance.new("Frame")
 placeholderFrame.Size = UDim2.new(1, 0, 1, 0)
 placeholderFrame.BackgroundTransparency = 1
@@ -710,7 +688,6 @@ placeholderText.TextSize = 13
 placeholderText.TextWrapped = true
 placeholderText.Parent = placeholderFrame
 
--- Content Frame
 local contentFrame = Instance.new("ScrollingFrame")
 contentFrame.Size = UDim2.new(1, -12, 1, -12)
 contentFrame.Position = UDim2.new(0, 6, 0, 6)
@@ -732,7 +709,6 @@ contentPadding.PaddingTop = UDim.new(0, 4)
 contentPadding.PaddingBottom = UDim.new(0, 4)
 contentPadding.Parent = contentFrame
 
--- Settings Panel
 local settingsPanel = Instance.new("Frame")
 settingsPanel.Name = "SettingsPanel"
 settingsPanel.Size = UDim2.new(1, -16, 1, -52)
@@ -758,7 +734,6 @@ settingsPadding.PaddingLeft = UDim.new(0, 16)
 settingsPadding.PaddingRight = UDim.new(0, 16)
 settingsPadding.Parent = settingsPanel
 
--- Theme Setting
 local themeContainer = Instance.new("Frame")
 themeContainer.Size = UDim2.new(1, 0, 0, 50)
 themeContainer.BackgroundColor3 = GetTheme().Background
@@ -795,7 +770,6 @@ local themeButtonCorner = Instance.new("UICorner")
 themeButtonCorner.CornerRadius = UDim.new(0, 6)
 themeButtonCorner.Parent = themeButton
 
--- Language Setting
 local languageContainer = Instance.new("Frame")
 languageContainer.Size = UDim2.new(1, 0, 0, 50)
 languageContainer.BackgroundColor3 = GetTheme().Background
@@ -832,7 +806,6 @@ local languageButtonCorner = Instance.new("UICorner")
 languageButtonCorner.CornerRadius = UDim.new(0, 6)
 languageButtonCorner.Parent = languageButton
 
--- Theme Popup
 local themePopup = Instance.new("Frame")
 themePopup.Name = "ThemePopup"
 themePopup.Size = UDim2.new(1, 0, 1, 0)
@@ -876,7 +849,6 @@ themeOptionsList.Padding = UDim.new(0, 8)
 themeOptionsList.SortOrder = Enum.SortOrder.LayoutOrder
 themeOptionsList.Parent = themeOptionsContainer
 
--- Language Popup
 local languagePopup = Instance.new("Frame")
 languagePopup.Name = "LanguagePopup"
 languagePopup.Size = UDim2.new(1, 0, 1, 0)
@@ -920,7 +892,6 @@ languageOptionsList.Padding = UDim.new(0, 8)
 languageOptionsList.SortOrder = Enum.SortOrder.LayoutOrder
 languageOptionsList.Parent = languageOptionsContainer
 
--- Confirmation Popup
 local confirmationPopup = Instance.new("Frame")
 confirmationPopup.Name = "ConfirmationPopup"
 confirmationPopup.Size = UDim2.new(1, 0, 1, 0)
@@ -1002,7 +973,6 @@ local yesCorner = Instance.new("UICorner")
 yesCorner.CornerRadius = UDim.new(0, 8)
 yesCorner.Parent = popupYesButton
 
--- ==================== HELPER FUNCTIONS ====================
 local function createHoverEffect(button, normalColor, hoverColor)
     button.MouseEnter:Connect(function()
         TweenService:Create(button, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {BackgroundColor3 = hoverColor}):Play()
@@ -1033,11 +1003,9 @@ local function hidePopup(popup, box)
     popup.Visible = false
 end
 
--- ==================== THEME SYSTEM ====================
 local function applyTheme()
     local theme = GetTheme()
     
-    -- Main UI
     mainFrame.BackgroundColor3 = theme.Background
     mainStroke.Color = theme.Primary
     titleBar.BackgroundColor3 = theme.Surface
@@ -1046,19 +1014,16 @@ local function applyTheme()
     titleLabel.TextColor3 = theme.Text
     toggleButton.BackgroundColor3 = theme.Primary
     
-    -- Buttons
     settingsButton.BackgroundColor3 = theme.Primary
     minimizeButton.BackgroundColor3 = theme.Warning
     closeButton.BackgroundColor3 = theme.Danger
     
-    -- Containers
     categoryFrame.BackgroundColor3 = theme.Surface
     categoryFrame.ScrollBarImageColor3 = theme.Primary
     scriptContainer.BackgroundColor3 = theme.Surface
     categorySearchContainer.BackgroundColor3 = theme.Surface
     scriptSearchContainer.BackgroundColor3 = theme.Surface
     
-    -- Search
     categorySearchBox.TextColor3 = theme.Text
     categorySearchBox.PlaceholderColor3 = theme.TextSecondary
     categorySearchBtn.BackgroundColor3 = theme.Primary
@@ -1066,10 +1031,8 @@ local function applyTheme()
     scriptSearchBox.PlaceholderColor3 = theme.TextSecondary
     scriptSearchBtn.BackgroundColor3 = theme.Primary
     
-    -- Placeholder
     placeholderText.TextColor3 = theme.TextSecondary
     
-    -- Settings Panel
     settingsPanel.BackgroundColor3 = theme.Surface
     themeContainer.BackgroundColor3 = theme.Background
     themeLabel.TextColor3 = theme.Text
@@ -1078,7 +1041,6 @@ local function applyTheme()
     languageLabel.TextColor3 = theme.Text
     languageButton.BackgroundColor3 = theme.Primary
     
-    -- Popups
     themePopupBox.BackgroundColor3 = theme.Surface
     themePopupTitle.TextColor3 = theme.Text
     languagePopupBox.BackgroundColor3 = theme.Surface
@@ -1089,7 +1051,6 @@ local function applyTheme()
     popupNoButton.BackgroundColor3 = theme.TextSecondary
     popupYesButton.BackgroundColor3 = theme.Danger
     
-    -- Update all category buttons
     for _, child in pairs(categoryFrame:GetChildren()) do
         if child:IsA("TextButton") then
             child.BackgroundColor3 = theme.Background
@@ -1112,7 +1073,6 @@ local function applyTheme()
         end
     end
     
-    -- Update all script cards
     for _, child in pairs(contentFrame:GetChildren()) do
         if child:IsA("Frame") then
             child.BackgroundColor3 = theme.Background
@@ -1145,7 +1105,6 @@ local function updateLanguage()
     languagePopupTitle.Text = lang.language
 end
 
--- ==================== THEME OPTIONS ====================
 local themeOptions = {"Dark", "Light", "Blue", "Green", "Yellow"}
 for _, themeName in ipairs(themeOptions) do
     local optionButton = Instance.new("TextButton")
@@ -1174,7 +1133,6 @@ for _, themeName in ipairs(themeOptions) do
     end)
 end
 
--- ==================== LANGUAGE OPTIONS ====================
 local languageOptions = {
     {code = "EN", name = "English"},
     {code = "VI", name = "Tiếng Việt"},
@@ -1210,7 +1168,6 @@ for _, lang in ipairs(languageOptions) do
     end)
 end
 
--- ==================== SCRIPT DATABASE ====================
 local scriptDatabase = {
     {category = "Pressure", icon = "🔥", scripts = {{name = "Nullfire Hub", url = "https://rawscripts.net/raw/Pressure-WORKING-fire-hub-18064"}}},
     {category = "The Forge", icon = "⚒️", scripts = {
@@ -1227,7 +1184,6 @@ local scriptDatabase = {
 local selectedCategory = nil
 local currentScripts = {}
 
--- ==================== SEARCH FUNCTIONS ====================
 local function highlightMatches(text, query, textLabel)
     if query == "" then
         textLabel.Text = text
@@ -1362,7 +1318,6 @@ local function searchScripts(query)
     contentFrame.CanvasSize = UDim2.new(0, 0, 0, contentList.AbsoluteContentSize.Y + 8)
 end
 
--- ==================== CATEGORY CREATION ====================
 local function createCategoryButton(name, icon, scripts)
     local button = Instance.new("TextButton")
     button.Size = UDim2.new(1, 0, 0, 38)
@@ -1541,7 +1496,6 @@ end
 
 categoryFrame.CanvasSize = UDim2.new(0, 0, 0, categoryList.AbsoluteContentSize.Y + 12)
 
--- ==================== SEARCH HANDLERS ====================
 categorySearchBtn.MouseButton1Click:Connect(function()
     searchCategories(categorySearchBox.Text)
 end)
@@ -1558,7 +1512,6 @@ scriptSearchBox:GetPropertyChangedSignal("Text"):Connect(function()
     searchScripts(scriptSearchBox.Text)
 end)
 
--- ==================== SETTINGS HANDLERS ====================
 settingsButton.MouseButton1Click:Connect(function()
     local isSettingsVisible = settingsPanel.Visible
     
@@ -1590,7 +1543,6 @@ end)
 themePopupBox.MouseButton1Click:Connect(function() end)
 languagePopupBox.MouseButton1Click:Connect(function() end)
 
--- ==================== TOGGLE & DRAGGING ====================
 local isVisible = false
 local savedSize = nil
 local savedPosition = nil
@@ -1794,7 +1746,6 @@ UserInputService.InputChanged:Connect(function(input)
     end
 end)
 
--- ==================== BUTTON HANDLERS ====================
 minimizeButton.MouseButton1Click:Connect(function() toggleGUI() end)
 
 closeButton.MouseButton1Click:Connect(function()
@@ -1811,7 +1762,6 @@ closeButton.MouseButton1Click:Connect(function()
 end)
 
 popupNoButton.MouseButton1Click:Connect(function()
-    DebugLog("Close cancelled")
     TweenService:Create(confirmationPopup, TweenInfo.new(0.2), {BackgroundTransparency = 1}):Play()
     TweenService:Create(popupBox, TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.In), {
         Size = UDim2.new(0, 320, 0, 160)
@@ -1821,7 +1771,6 @@ popupNoButton.MouseButton1Click:Connect(function()
 end)
 
 popupYesButton.MouseButton1Click:Connect(function()
-    DebugLog("Closing Script Hub...")
     TweenService:Create(confirmationPopup, TweenInfo.new(0.2), {BackgroundTransparency = 1}):Play()
     task.wait(0.2)
     TweenService:Create(mainFrame, TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.In), {
@@ -1836,7 +1785,6 @@ popupYesButton.MouseButton1Click:Connect(function()
     end
     task.wait(0.2)
     screenGui:Destroy()
-    DebugLog("Script Hub closed successfully")
 end)
 
 createHoverEffect(settingsButton, GetTheme().Primary, Color3.fromRGB(108, 121, 255))
@@ -1847,74 +1795,32 @@ createHoverEffect(popupYesButton, GetTheme().Danger, Color3.fromRGB(255, 80, 80)
 createHoverEffect(categorySearchBtn, GetTheme().Primary, Color3.fromRGB(108, 121, 255))
 createHoverEffect(scriptSearchBtn, GetTheme().Primary, Color3.fromRGB(108, 121, 255))
 
-DebugLog("All event handlers connected")
-
 applyTheme()
 updateLanguage()
 
-DebugLog("Performing real initialization tasks...")
-
 task.spawn(function()
-    local startTime = tick()
-    
-    DebugLog("Step 1/5: Verifying GUI components...")
-    task.wait(0.3)
-    
-    DebugLog("Step 2/5: Loading user settings...")
-    task.wait(0.3)
-    
-    DebugLog("Step 3/5: Initializing theme system...")
-    task.wait(0.3)
-    
-    DebugLog("Step 4/5: Setting up event listeners...")
-    task.wait(0.3)
-    
-    DebugLog("Step 5/5: Sending webhook notification...")
-    SendWebhook(hwid)
-    task.wait(0.3)
-    
-    local elapsedTime = tick() - startTime
-    local remainingTime = math.max(0, 1.5 - elapsedTime)
-    
-    DebugLog("Initialization complete, waiting " .. string.format("%.2f", remainingTime) .. "s for effect...")
-    task.wait(remainingTime)
-    
-    DebugLog("Hiding loading screen...")
-    TweenService:Create(startupLoading, TweenInfo.new(0.5), {BackgroundTransparency = 1}):Play()
-    TweenService:Create(startupTitle, TweenInfo.new(0.5), {TextTransparency = 1}):Play()
-    TweenService:Create(startupSubtitle, TweenInfo.new(0.5), {TextTransparency = 1}):Play()
-    for _, dot in pairs(startupSpinner:GetChildren()) do
-        if dot:IsA("Frame") then
-            TweenService:Create(dot, TweenInfo.new(0.5), {BackgroundTransparency = 1}):Play()
-        end
-    end
-    task.wait(0.5)
+    task.wait(2)
     if startupSpinConnection then 
-        startupSpinConnection:Disconnect() 
-        DebugLog("Loading animation stopped")
+        startupSpinConnection:Disconnect()
     end
-    startupLoading:Destroy()
-    DebugLog("Loading screen destroyed")
+    if startupLoading and startupLoading.Parent then
+        TweenService:Create(startupLoading, TweenInfo.new(0.5), {BackgroundTransparency = 1}):Play()
+        TweenService:Create(startupTitle, TweenInfo.new(0.5), {TextTransparency = 1}):Play()
+        TweenService:Create(startupSubtitle, TweenInfo.new(0.5), {TextTransparency = 1}):Play()
+        for _, dot in pairs(startupSpinner:GetChildren()) do
+            if dot:IsA("Frame") then
+                TweenService:Create(dot, TweenInfo.new(0.5), {BackgroundTransparency = 1}):Play()
+            end
+        end
+        task.wait(0.5)
+        startupLoading:Destroy()
+    end
     
     task.wait(0.5)
-    DebugLog("Opening main GUI...")
     toggleGUI()
     
-    DebugLog("===========================================")
-    DebugLog("🎮 ROBLOX SCRIPT HUB V2.0 - FULLY LOADED")
-    DebugLog("✅ All systems operational")
-    DebugLog("📱 Mobile & Desktop supported")
-    DebugLog("🌍 Languages: EN, VI, RU, FR, ES")
-    DebugLog("🎨 Themes: Dark, Light, Blue, Green, Yellow")
-    DebugLog("🔍 Advanced search ready")
-    DebugLog("💾 Settings persistence active")
-    DebugLog("🔒 Anti-spam protection enabled")
-    DebugLog("🔑 HWID: " .. hwid)
-    DebugLog("===========================================")
-    
-    print("\n")
     print("===========================================")
-    print("🎮 ROBLOX SCRIPT HUB V2.0")
+    print("🎮 ROBLOX SCRIPT HUB V2.0 - FIXED")
     print("===========================================")
     print("✅ Loaded successfully!")
     print("📱 Mobile & PC supported")
@@ -1925,60 +1831,4 @@ task.spawn(function()
     print("🔒 Anti-spam protection active")
     print("🔑 HWID: " .. hwid)
     print("===========================================")
-    print("\n")
 end)
-        Position = UDim2.new(0.5, -200, 0.5, -100)
-    }):Play()
-end)
-
-popupNoButton.MouseButton1Click:Connect(function()
-    TweenService:Create(confirmationPopup, TweenInfo.new(0.2), {BackgroundTransparency = 1}):Play()
-    TweenService:Create(popupBox, TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.In), {
-        Size = UDim2.new(0, 320, 0, 160)
-    }):Play()
-    task.wait(0.2)
-    confirmationPopup.Visible = false
-end)
-
-popupYesButton.MouseButton1Click:Connect(function()
-    TweenService:Create(confirmationPopup, TweenInfo.new(0.2), {BackgroundTransparency = 1}):Play()
-    task.wait(0.2)
-    TweenService:Create(mainFrame, TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.In), {
-        Size = UDim2.new(0, 0, 0, 0),
-        BackgroundTransparency = 1
-    }):Play()
-    TweenService:Create(toggleButton, TweenInfo.new(0.2), {BackgroundTransparency = 1}):Play()
-    for _, line in pairs(iconFrame:GetChildren()) do
-        if line:IsA("Frame") then
-            TweenService:Create(line, TweenInfo.new(0.2), {BackgroundTransparency = 1}):Play()
-        end
-    end
-    task.wait(0.2)
-    screenGui:Destroy()
-end)
-
-createHoverEffect(settingsButton, GetTheme().Primary, Color3.fromRGB(108, 121, 255))
-createHoverEffect(minimizeButton, GetTheme().Warning, Color3.fromRGB(255, 180, 50))
-createHoverEffect(closeButton, GetTheme().Danger, Color3.fromRGB(255, 80, 80))
-createHoverEffect(popupNoButton, GetTheme().TextSecondary, Color3.fromRGB(165, 167, 170))
-createHoverEffect(popupYesButton, GetTheme().Danger, Color3.fromRGB(255, 80, 80))
-createHoverEffect(categorySearchBtn, GetTheme().Primary, Color3.fromRGB(108, 121, 255))
-createHoverEffect(scriptSearchBtn, GetTheme().Primary, Color3.fromRGB(108, 121, 255))
-
--- ==================== INITIAL LOAD ====================
-applyTheme()
-updateLanguage()
-
-task.wait(2.5)
-toggleGUI()
-
-print("===========================================")
-print("🎮 ROBLOX SCRIPT HUB V2.0 - ENHANCED EDITION")
-print("✅ Loaded successfully!")
-print("📱 Mobile & PC supported")
-print("🌍 Multi-language: EN, VI, RU, FR, ES")
-print("🎨 Themes: Dark, Light, Blue, Green, Yellow")
-print("🔍 Advanced search with highlighting")
-print("💾 Settings persistence enabled")
-print("🔒 Anti-spam protection active")
-print("===========================================")
