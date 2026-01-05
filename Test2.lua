@@ -1673,6 +1673,88 @@ createHoverEffect(popupYesButton, GetTheme().Danger, Color3.fromRGB(255, 80, 80)
 createHoverEffect(categorySearchBtn, GetTheme().Primary, Color3.fromRGB(108, 121, 255))
 createHoverEffect(scriptSearchBtn, GetTheme().Primary, Color3.fromRGB(108, 121, 255))
 
+applyTheme(false)
+updateLanguage()
+
+task.spawn(function()
+    task.wait(2)
+    spinnerActive = false
+    if spinnerConnection then
+        spinnerConnection:Disconnect()
+        spinnerConnection = nil
+    end
+    if startupLoading and startupLoading.Parent then
+        TweenService:Create(startupLoading, TweenInfo.new(0.5), {BackgroundTransparency = 1}):Play()
+        TweenService:Create(startupTitle, TweenInfo.new(0.5), {TextTransparency = 1}):Play()
+        TweenService:Create(startupSubtitle, TweenInfo.new(0.5), {TextTransparency = 1}):Play()
+        for _, dot in pairs(startupSpinner:GetChildren()) do
+            if dot:IsA("Frame") then
+                TweenService:Create(dot, TweenInfo.new(0.5), {BackgroundTransparency = 1}):Play()
+            end
+        end
+        task.wait(0.5)
+        pcall(function() startupLoading:Destroy() end)
+    end
+    task.wait(0.5)
+    toggleGUI()
+    print("===========================================")
+    print("🎮 ROBLOX SCRIPT HUB V2.0 - ULTIMATE")
+    print("===========================================")
+    print("✅ All animations working!")
+    print("🎬 Settings panel slide animation")
+    print("🔄 Category switch animations")
+    print("⏳ Script execution loading")
+    print("🔍 Search loading animations")
+    print("🎨 Smooth theme transitions")
+    print("⚡ Optimized debounce system")
+    print("📱 Mobile & PC optimized")
+    print("🌍 Languages: EN, VI, RU, FR, ES")
+    print("🎨 Themes: Dark, Light, Blue, Green, Yellow")
+    print("🔐 Advanced webhook tracking")
+    print("🔑 HWID: " .. hwid)
+    print("===========================================")
+end) Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+        local currentPos = getInputPosition(input)
+        local delta = currentPos - dragStart
+        mainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+    end
+end)
+
+minimizeButton.MouseButton1Click:Connect(function() toggleGUI() end)
+
+closeButton.MouseButton1Click:Connect(function()
+    showPopup(confirmationPopup, popupBox, "Confirmation")
+end)
+
+popupNoButton.MouseButton1Click:Connect(function()
+    hidePopup(confirmationPopup, popupBox, "Confirmation")
+end)
+
+popupYesButton.MouseButton1Click:Connect(function()
+    TweenService:Create(confirmationPopup, TweenInfo.new(0.2), {BackgroundTransparency = 1}):Play()
+    task.wait(0.2)
+    TweenService:Create(mainFrame, TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.In), {
+        Size = UDim2.new(0, 0, 0, 0),
+        BackgroundTransparency = 1
+    }):Play()
+    TweenService:Create(toggleButton, TweenInfo.new(0.2), {BackgroundTransparency = 1}):Play()
+    for _, line in pairs(iconFrame:GetChildren()) do
+        if line:IsA("Frame") then
+            TweenService:Create(line, TweenInfo.new(0.2), {BackgroundTransparency = 1}):Play()
+        end
+    end
+    task.wait(0.2)
+    screenGui:Destroy()
+end)
+
+createHoverEffect(settingsButton, GetTheme().Primary, Color3.fromRGB(108, 121, 255))
+createHoverEffect(minimizeButton, GetTheme().Warning, Color3.fromRGB(255, 180, 50))
+createHoverEffect(closeButton, GetTheme().Danger, Color3.fromRGB(255, 80, 80))
+createHoverEffect(popupNoButton, GetTheme().TextSecondary, Color3.fromRGB(165, 167, 170))
+createHoverEffect(popupYesButton, GetTheme().Danger, Color3.fromRGB(255, 80, 80))
+createHoverEffect(categorySearchBtn, GetTheme().Primary, Color3.fromRGB(108, 121, 255))
+createHoverEffect(scriptSearchBtn, GetTheme().Primary, Color3.fromRGB(108, 121, 255))
+
 applyTheme()
 updateLanguage()
 
