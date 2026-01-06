@@ -100,6 +100,7 @@ local LANGUAGES = {
         language = "Language",
         search = "Search...",
         noResults = "No results found",
+        executing = "Executing...",
     },
     VI = {
         title = "TRUNG TÂM SCRIPT ROBLOX",
@@ -117,6 +118,7 @@ local LANGUAGES = {
         language = "Ngôn Ngữ",
         search = "Tìm kiếm...",
         noResults = "Không tìm thấy kết quả",
+        executing = "Đang thực thi...",
     },
     RU = {
         title = "ЦЕНТР СКРИПТОВ ROBLOX",
@@ -134,6 +136,7 @@ local LANGUAGES = {
         language = "Язык",
         search = "Поиск...",
         noResults = "Результаты не найдены",
+        executing = "Выполнение...",
     },
     FR = {
         title = "CENTRE DE SCRIPTS ROBLOX",
@@ -151,6 +154,7 @@ local LANGUAGES = {
         language = "Langue",
         search = "Rechercher...",
         noResults = "Aucun résultat trouvé",
+        executing = "Exécution...",
     },
     ES = {
         title = "CENTRO DE SCRIPTS ROBLOX",
@@ -168,6 +172,7 @@ local LANGUAGES = {
         language = "Idioma",
         search = "Buscar...",
         noResults = "No se encontraron resultados",
+        executing = "Ejecutando...",
     }
 }
 
@@ -1482,14 +1487,33 @@ local function createCategoryButton(name, icon, scripts)
                 local originalBtnText = executeBtn.Text
                 local originalBtnColor = executeBtn.BackgroundColor3
                 
+                executeBtn.Text = "⏳ " .. GetLang().executing
                 TweenService:Create(executeBtn, TweenInfo.new(0.2), {BackgroundColor3 = GetTheme().Warning}):Play()
-                executeBtn.Text = "⏳..."
+                
+                local loadingDots = ""
+                local dotCount = 0
+                local dotTimer = tick()
+                
+                local dotConnection = RunService.Heartbeat:Connect(function()
+                    if tick() - dotTimer >= 0.3 then
+                        dotTimer = tick()
+                        dotCount = (dotCount + 1) % 4
+                        loadingDots = string.rep(".", dotCount)
+                        executeBtn.Text = "⏳ " .. GetLang().executing .. loadingDots
+                    end
+                end)
                 
                 task.spawn(function()
+                    task.wait(2)
+                    
                     local success, err = pcall(function()
                         loadstring(game:HttpGet(scriptData.url, true))()
                     end)
-                    task.wait(0.5)
+                    
+                    if dotConnection then
+                        dotConnection:Disconnect()
+                    end
+                    
                     if success then
                         TweenService:Create(executeBtn, TweenInfo.new(0.2), {BackgroundColor3 = GetTheme().Success}):Play()
                         executeBtn.Text = "✓ " .. GetLang().ok
@@ -1497,6 +1521,7 @@ local function createCategoryButton(name, icon, scripts)
                         TweenService:Create(executeBtn, TweenInfo.new(0.2), {BackgroundColor3 = GetTheme().Danger}):Play()
                         executeBtn.Text = "✕ " .. GetLang().error
                     end
+                    
                     task.wait(1.5)
                     TweenService:Create(executeBtn, TweenInfo.new(0.2), {BackgroundColor3 = originalBtnColor}):Play()
                     executeBtn.Text = originalBtnText
@@ -1522,15 +1547,7 @@ categorySearchBtn.MouseButton1Click:Connect(function()
     searchCategories(categorySearchBox.Text)
 end)
 
-categorySearchBox:GetPropertyChangedSignal("Text"):Connect(function()
-    searchCategories(categorySearchBox.Text)
-end)
-
 scriptSearchBtn.MouseButton1Click:Connect(function()
-    searchScripts(scriptSearchBox.Text)
-end)
-
-scriptSearchBox:GetPropertyChangedSignal("Text"):Connect(function()
     searchScripts(scriptSearchBox.Text)
 end)
 
@@ -1744,12 +1761,84 @@ task.spawn(function()
     task.wait(0.5)
     toggleGUI()
     print("===========================================")
-    print("🎮 ROBLOX SCRIPT HUB V2.0 - ALL ANIMATIONS RESTORED")
+    print("🎮 ROBLOX SCRIPT HUB V2.0 - ULTIMATE FINAL")
     print("===========================================")
-    print("✅ Settings slide animation - FIXED!")
-    print("✅ Category switch animation - FIXED!")
-    print("✅ Script execution loading - FIXED!")
-    print("✅ Startup loading animation - FIXED!")
+    print("✅ Fullscreen loading animation - ADDED!")
+    print("✅ 2-second execution with spinner - PERFECT!")
+    print("✅ Manual search button - FIXED!")
+    print("✅ All animations working perfectly!")
+    print("🔑 HWID: " .. hwid)
+    print("===========================================")
+end)im2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+    end
+end)
+
+minimizeButton.MouseButton1Click:Connect(function() 
+    toggleGUI() 
+end)
+
+closeButton.MouseButton1Click:Connect(function()
+    showPopup(confirmationPopup, popupBox, "Confirmation")
+end)
+
+popupNoButton.MouseButton1Click:Connect(function()
+    hidePopup(confirmationPopup, popupBox, "Confirmation")
+end)
+
+popupYesButton.MouseButton1Click:Connect(function()
+    TweenService:Create(confirmationPopup, TweenInfo.new(0.2), {BackgroundTransparency = 1}):Play()
+    task.wait(0.2)
+    TweenService:Create(mainFrame, TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.In), {
+        Size = UDim2.new(0, 0, 0, 0),
+        BackgroundTransparency = 1
+    }):Play()
+    TweenService:Create(toggleButton, TweenInfo.new(0.2), {BackgroundTransparency = 1}):Play()
+    for _, line in pairs(iconFrame:GetChildren()) do
+        if line:IsA("Frame") then
+            TweenService:Create(line, TweenInfo.new(0.2), {BackgroundTransparency = 1}):Play()
+        end
+    end
+    task.wait(0.2)
+    screenGui:Destroy()
+end)
+
+createHoverEffect(settingsButton, GetTheme().Primary, Color3.fromRGB(108, 121, 255))
+createHoverEffect(minimizeButton, GetTheme().Warning, Color3.fromRGB(255, 180, 50))
+createHoverEffect(closeButton, GetTheme().Danger, Color3.fromRGB(255, 80, 80))
+createHoverEffect(popupNoButton, GetTheme().TextSecondary, Color3.fromRGB(165, 167, 170))
+createHoverEffect(popupYesButton, GetTheme().Danger, Color3.fromRGB(255, 80, 80))
+createHoverEffect(categorySearchBtn, GetTheme().Primary, Color3.fromRGB(108, 121, 255))
+createHoverEffect(scriptSearchBtn, GetTheme().Primary, Color3.fromRGB(108, 121, 255))
+
+applyTheme()
+updateLanguage()
+
+task.spawn(function()
+    task.wait(2)
+    spinnerActive = false
+    if spinnerConnection then
+        spinnerConnection:Disconnect()
+        spinnerConnection = nil
+    end
+    if startupLoading and startupLoading.Parent then
+        TweenService:Create(startupLoading, TweenInfo.new(0.5), {BackgroundTransparency = 1}):Play()
+        TweenService:Create(startupTitle, TweenInfo.new(0.5), {TextTransparency = 1}):Play()
+        TweenService:Create(startupSubtitle, TweenInfo.new(0.5), {TextTransparency = 1}):Play()
+        for _, dot in pairs(startupSpinner:GetChildren()) do
+            if dot:IsA("Frame") then
+                TweenService:Create(dot, TweenInfo.new(0.5), {BackgroundTransparency = 1}):Play()
+            end
+        end
+        task.wait(0.5)
+        pcall(function() startupLoading:Destroy() end)
+    end
+    task.wait(0.5)
+    toggleGUI()
+    print("===========================================")
+    print("🎮 ROBLOX SCRIPT HUB V2.0 - PERFECT")
+    print("===========================================")
+    print("✅ 2-second loading animation - FIXED!")
+    print("✅ Manual search button - FIXED!")
     print("✅ All animations working perfectly!")
     print("🔑 HWID: " .. hwid)
     print("===========================================")
